@@ -36,10 +36,10 @@ OPENKB_HOST=127.0.0.1 OPENKB_PORT=6800 pnpm start
 
 ## 环境变量说明
 
-| 变量名                   | 默认值             | 说明              |
-| ------------------------ | ------------------ | ----------------- |
-| `OPENKB_HOST`            | `127.0.0.1`        | 监听地址          |
-| `OPENKB_PORT`            | `6800`             | HTTP 端口         |
-| `OPENKB_DB_CLIENT`       | `sqlite`           | 数据库适配器      |
-| `OPENKB_SQLITE_FILENAME` | `./data/openkb.db` | SQLite 数据库路径 |
-| `OPENKB_DATA_DIR`        | `./data`           | 运行时数据目录    |
+| 变量名                   | 默认值      | 说明              |
+| ------------------------ | ----------- | ----------------- |
+| `OPENKB_HOST`            | `127.0.0.1` | 监听地址          |
+| `OPENKB_PORT`            | `6800`      | HTTP 端口         |
+| `OPENKB_DB_CLIENT`       | `sqlite`    | 数据库适配器      |
+| `OPENKB_SQLITE_FILENAME` | `openkb.db` | SQLite 数据库路径 |
+| `OPENKB_DATA_DIR`        | `./data`    | 运行时数据目录    |

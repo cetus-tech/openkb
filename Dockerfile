@@ -62,8 +62,7 @@ RUN CI=true pnpm exec vite build
 FROM ${NODE_IMAGE} AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
-  OPENKB_DATA_DIR=/data \
-  OPENKB_SQLITE_FILENAME=/data/openkb.db
+  OPENKB_DATA_DIR=/data
 
 # Clean up unused Node tools (npm, yarn, corepack, headers) from base image to shrink runtime
 RUN apk add --no-cache su-exec \
