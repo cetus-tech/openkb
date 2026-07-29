@@ -15,6 +15,7 @@ import UsersView from '@/views/portal/UsersView.vue';
 import AgentsView from '@/views/portal/AgentsView.vue';
 import KnowledgeView from '@/views/portal/KnowledgeView.vue';
 import KnowledgeDetailView from '@/views/portal/KnowledgeDetailView.vue';
+import { useConfigStore } from '@/stores/config';
 
 function authGuard(to: any, from: any, next: (to?: any) => void) {
     const signedIn =
@@ -150,6 +151,18 @@ const router = createRouter({
             redirect: { name: 'not-found' },
         },
     ],
+});
+
+router.beforeEach(async (to, from, next) => {
+    const config = useConfigStore();
+    await config.loadConfig();
+
+    if (config.hidePortal) {
+        if (to.path.startsWith('/dashboard') || to.path.startsWith('/auth')) {
+            return next({ name: 'not-found' });
+        }
+    }
+    next();
 });
 
 router.afterEach((to) => {
