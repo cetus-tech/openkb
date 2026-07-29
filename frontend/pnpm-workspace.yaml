@@ -1,0 +1,14 @@
+# pnpm settings for this package (v10+ / v11 read settings from this file, not package.json "pnpm").
+# Lifecycle scripts are blocked unless packages are allowlisted.
+#
+# - onlyBuiltDependencies: array form (pnpm 10.x)
+# - allowBuilds: map form (pnpm 11.x; replaces onlyBuiltDependencies)
+# Keep both so installs work across v10 and v11.
+onlyBuiltDependencies:
+  - esbuild
+  - vue-demi
+allowBuilds:
+  esbuild: true
+  vue-demi: true
+minimumReleaseAgeExclude:
+  - '@iconify/json@2.2.503'

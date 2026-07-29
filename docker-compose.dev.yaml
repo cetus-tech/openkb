@@ -1,0 +1,47 @@
+services:
+    # Dev override: runs tsx watch with host source mounted in.
+    # Start with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+    # Auto-reloads on host file changes (tsx watch inside container).
+    #
+    # Note: the production image only installs runtime backend deps (no tsx/typescript).
+    # Prefer local `pnpm dev` for day-to-day backend work, or build a non-pruned image
+    # (`docker build --target backend-build`) if you need this override.
+    #
+    # SQLite web UI: http://localhost:6801 (same ./data/openkb.db as the app)
+    openkb:
+        image: openkb
+        container_name: openkb-dev
+        command: ['npx', 'tsx', 'watch', 'backend/src/server.ts']
+        ports:
+            - '6800:6800'
+        volumes:
+            # Mount host source so tsx watch picks up edits without rebuild
+            - ./backend/src:/app/backend/src
+            - ./backend/docs:/app/backend/docs
+            - ./backend/dist/db:/app/dist/db
+            - ./backend/package.json:/app/backend/package.json
+            - ./backend/tsconfig.json:/app/backend/tsconfig.json
+            - ./frontend/dist:/app/dist/public
+            - ./data:/data
+        environment:
+            - OPENKB_DB_CLIENT=sqlite
+            - OPENKB_SQLITE_FILENAME=/data/openkb.db
+            - OPENKB_DATA_DIR=/data
+            - OPENKB_HOST=0.0.0.0
+            - OPENKB_PORT=6800
+            - LOG_LEVEL=debug
+            #- HIDE_PORTAL=true
+            - SIGNUP_ENABLED=true
+
+    # Browser UI for the shared SQLite file (dev only — can lock/write the DB).
+    sqlite-web:
+        image: coleifer/sqlite-web:latest
+        container_name: openkb-sqlite-web
+        ports:
+            - '6801:8080'
+        environment:
+            SQLITE_DATABASE: /data/openkb.db
+        volumes:
+            - ./data:/data
+        depends_on:
+            - openkb

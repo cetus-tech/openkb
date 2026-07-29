@@ -1,0 +1,34 @@
+{
+  "name": "openkb-backend",
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.15.1",
+  "private": true,
+  "description": "Self-hosted OpenKB server for canonical, versioned project knowledge.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --pretty false",
+    "test": "vitest run",
+    "lint": "tsc -p tsconfig.json --pretty false",
+    "dev": "tsx src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/sensible": "^6.0.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "better-sqlite3": "^12.11.1",
+    "fastify": "^5.10.0",
+    "knex": "^3.3.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

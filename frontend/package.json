@@ -1,0 +1,42 @@
+{
+  "name": "openkb-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.15.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "@vueuse/core": "^14.3.0",
+    "dompurify": "^3.4.12",
+    "marked": "^18.0.6",
+    "pinia": "^4.0.2",
+    "shiki": "^4.3.1",
+    "vue": "^3.5.40",
+    "vue-router": "^5.2.0"
+  },
+  "devDependencies": {
+    "@iconify/json": "^2.2.472",
+    "@types/dompurify": "^3.2.0",
+    "@types/node": "^26.1.1",
+    "@unocss/preset-wind": "^66.7.5",
+    "@unocss/transformer-directives": "^66.7.5",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/test-utils": "^2.4.11",
+    "happy-dom": "^20.11.0",
+    "naive-ui": "^2.44.1",
+    "typescript": "~5.8.3",
+    "unocss": "^66.7.5",
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10",
+    "vue-tsc": "^2.2.12"
+  }
+}

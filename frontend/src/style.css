@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #374151;
+}
+
+.dark html, .dark body {
+  color: #d1d5db;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+}
+
+a {
+  text-decoration: none;
+}
+
+/* Scrollbar styling */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Prose styling for markdown content */
+.prose {
+  max-width: 768px;
+  line-height: 1.75;
+  color: #374151;
+}
+
+.dark .prose {
+  color: #d1d5db;
+}
+
+.prose h1 { font-size: 2.25rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 1rem; line-height: 1.2; }
+.prose h2 { font-size: 1.5rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e5e7eb; }
+.dark .prose h2 { border-bottom-color: #374151; }
+.prose h3 { font-size: 1.25rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+.prose p { margin-bottom: 1rem; }
+.prose a { color: #2563eb; text-decoration: none; }
+.dark .prose a { color: #60a5fa; }
+.prose a:hover { text-decoration: underline; }
+.prose code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.875em; background: #f3f4f6; padding: 0.2em 0.4em; border-radius: 4px; }
+.dark .prose code { background: #1f2937; }
+/* Prose pre: shiki sets bg/color inline; we just handle layout and radius */
+.prose pre { border-radius: 8px; overflow-x: auto; margin-bottom: 1rem; font-size: 0.875em; }
+.prose pre code { background: none; padding: 0; font-size: inherit; }
+.prose ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
+.prose ol { list-style: decimal; padding-left: 1.5rem; margin-bottom: 1rem; }
+.prose li { margin-bottom: 0.25rem; }
+.prose blockquote { border-left: 4px solid #3b82f6; padding-left: 1rem; color: #6b7280; margin-bottom: 1rem; }
+.dark .prose blockquote { color: #9ca3af; }
+.prose table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+.prose th, .prose td { border: 1px solid #e5e7eb; padding: 0.5rem 0.75rem; text-align: left; }
+.dark .prose th, .dark .prose td { border-color: #374151; }
+.prose th { background: #f9fafb; font-weight: 600; }
+.dark .prose th { background: #1f2937; }
+.prose img { max-width: 100%; border-radius: 8px; margin: 1rem 0; }
+.prose hr { border: none; border-top: 1px solid #e5e7eb; margin: 2rem 0; }
+.dark .prose hr { border-top-color: #374151; }
+
+/* Shiki syntax highlighting — dual-theme via CSS variables.
+   Shiki outputs light colours as default; dark overrides use CSS vars. */
+.shiki { padding: 1rem; border-radius: 8px; overflow-x: auto; margin-bottom: 1rem; font-size: 0.875em; line-height: 1.6; background-color: #e7eff7 !important; }
+.shiki code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+/* Apply dark-theme shiki colours when the .dark class is active */
+.dark .shiki,
+.dark .shiki span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+  font-style: var(--shiki-dark-font-style) !important;
+  font-weight: var(--shiki-dark-font-weight) !important;
+  text-decoration: var(--shiki-dark-text-decoration) !important;
+}

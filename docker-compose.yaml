@@ -1,0 +1,53 @@
+services:
+    openkb:
+        image: ghcr.io/cetus-tech/openkb:latest
+        container_name: openkb
+        restart: unless-stopped
+        environment:
+            # Database backend used by OpenKB.
+            # `sqlite` is the default and simplest option for self-hosted/single-node installs.
+            # Future/team deployments may use `mysql` when configured by the app.
+            - OPENKB_DB_CLIENT=sqlite
+
+            # SQLite database file path inside the container.
+            # Because `/data` is bind-mounted below, this file is persisted on the host at
+            # `./data/openkb.db` next to this docker-compose.yml file.
+            - OPENKB_SQLITE_FILENAME=/data/openkb.db
+
+            # Directory inside the container where OpenKB stores runtime data such as
+            # SQLite files, generated state, uploads, caches, and other persistent app data.
+            - OPENKB_DATA_DIR=/data
+
+            # Interface the HTTP server binds to inside the container.
+            # Use `0.0.0.0` so Docker can publish the service to the host.
+            # Do not change this to `127.0.0.1` unless you only want it reachable inside the container.
+            - OPENKB_HOST=0.0.0.0
+
+            # HTTP port OpenKB listens on inside the container.
+            # This should match the container side of the `ports` mapping below.
+            - OPENKB_PORT=6800
+
+            # Logging level for the backend (e.g. debug, info, warn, error)
+            - LOG_LEVEL=info
+
+            # Set to 'true' to disable portal, effectively running OpenKB in a 'docs only' mode.
+            # - HIDE_PORTAL=true
+
+            # Set to 'true' to allow users to create new accounts on the login page.
+            # The first registered account automatically becomes the owner/admin.
+            - SIGNUP_ENABLED=true
+        ports:
+            - '6800:6800'
+        volumes:
+            - ./data:/data
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'node',
+                    '-e',
+                    "fetch('http://127.0.0.1:6800/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+                ]
+            interval: 30s
+            timeout: 5s
+            retries: 3
