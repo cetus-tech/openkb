@@ -16,7 +16,7 @@ services:
         restart: unless-stopped
         environment:
             - OPENKB_DB_CLIENT=sqlite
-            - OPENKB_SQLITE_FILENAME=/data/openkb.db
+            - OPENKB_SQLITE_FILENAME=openkb.db
             - OPENKB_DATA_DIR=/data
             - OPENKB_HOST=0.0.0.0
             - OPENKB_PORT=6800

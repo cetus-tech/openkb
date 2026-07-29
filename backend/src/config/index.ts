@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import path from 'node:path'
 
 export const dbClientSchema = z.enum(['sqlite', 'mysql'])
 export type DbClient = z.infer<typeof dbClientSchema>
@@ -7,7 +8,7 @@ export const openKbConfigSchema = z.object({
   host: z.string().default('127.0.0.1'),
   port: z.coerce.number().int().positive().default(6800),
   dbClient: dbClientSchema.default('sqlite'),
-  sqliteFilename: z.string().default('./data/openkb.db'),
+  sqliteFilename: z.string().default('openkb.db'),
   mysqlConnection: z.string().optional(),
   mysqlHost: z.string().default('127.0.0.1'),
   mysqlPort: z.coerce.number().int().positive().default(3306),
@@ -20,7 +21,7 @@ export const openKbConfigSchema = z.object({
 export type OpenKbConfig = z.infer<typeof openKbConfigSchema>
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): OpenKbConfig {
-  return openKbConfigSchema.parse({
+  const config = openKbConfigSchema.parse({
     host: env.OPENKB_HOST,
     port: env.OPENKB_PORT,
     dbClient: env.OPENKB_DB_CLIENT,
@@ -33,4 +34,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OpenKbConfig {
     mysqlDatabase: env.OPENKB_MYSQL_DATABASE ?? env.OPENKB_MYSQL_DB,
     dataDir: env.OPENKB_DATA_DIR,
   })
+
+  if (config.dbClient === 'sqlite' && !path.isAbsolute(config.sqliteFilename)) {
+    config.sqliteFilename = path.join(config.dataDir, config.sqliteFilename)
+  }
+
+  return config
 }

@@ -10,9 +10,7 @@ services:
             - OPENKB_DB_CLIENT=sqlite
 
             # SQLite database file path inside the container.
-            # Because `/data` is bind-mounted below, this file is persisted on the host at
-            # `./data/openkb.db` next to this docker-compose.yml file.
-            - OPENKB_SQLITE_FILENAME=/data/openkb.db
+            - OPENKB_SQLITE_FILENAME=openkb.db
 
             # Directory inside the container where OpenKB stores runtime data such as
             # SQLite files, generated state, uploads, caches, and other persistent app data.
