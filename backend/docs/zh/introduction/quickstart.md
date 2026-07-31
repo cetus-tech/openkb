@@ -1,6 +1,6 @@
 # 快速开始
 
-OpenKB 是 AI Agent 的大脑。面向 Agent 的服务接口是 MCP；Web 控制台则是人们添加知识和审核变更的地方。
+OpenKB 为 AI Agent 保存持久知识。面向 Agent 的服务接口是 MCP；Web 控制台则是人们添加知识和审核变更的地方。
 
 ### 简单了解 MCP
 
@@ -87,7 +87,7 @@ http://localhost:6800/mcp
 每个 MCP 客户端需要：
 
 - 由团队成员拥有的 **Bearer 令牌**（知识归属使用该用户）。
-- 用于权限控制的 **Agent 名称**（客户端声明），如 `codex`、`grok` 或 `codex-ci`。
+- 作为身份标签的 **Agent 名称**（客户端声明），如 `codex`、`grok` 或 `codex-ci`（权限来自 Bearer 令牌）。
 
 `AGENTS.md` 告知 Agent 使用 OpenKB，但它不会注册 Agent 身份。在 MCP 客户端的连接设置中配置 Agent 名称：
 
@@ -116,7 +116,7 @@ bearer_token_env_var = "OPENKB_TOKEN"
 http_headers = { "X-OpenKB-Agent" = "codex" }
 ```
 
-启动一个新的 Codex 会话并调用 `openkb_list_types`。首次认证的请求会自动创建拥有 `propose` 权限的 `codex` 身份。检查控制台中的 **Agent (Agents)** 页面，仅当信任该实例可直接更新有效知识时才将其更改为 `write`。管理员权限 `admin` 仅用于必须管理其他 Agent 的身份。
+启动一个新的 Codex 会话并调用 `openkb_list_types`。首次认证的请求会在 **Agent (Agents)** 中自动注册 `codex` 身份。MCP 权限属于 Bearer 令牌：在 **设置 → 令牌 (Settings → Tokens)** 中，仅当信任该客户端可直接更新有效知识时才将其设为 `write`。管理员权限通过 Web 控制台管理。
 
 在每次会话中使用相同的身份。更改名称会创建一个新的 Agent 记录，并具有独立的权限和活动历史。
 

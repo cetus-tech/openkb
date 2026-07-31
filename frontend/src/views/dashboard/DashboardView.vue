@@ -171,7 +171,8 @@
               class="flex min-w-0 items-center gap-3 py-2 first:pt-0 last:pb-0"
             >
               <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-white">{{ agent.name }}</span>
-              <n-tag size="small" :type="permissionType(agent.permissionLevel)" :bordered="false">{{ agent.permissionLevel }}</n-tag>
+              <n-tag v-if="agent.lastTokenPermission" size="small" :type="permissionType(agent.lastTokenPermission)" :bordered="false">{{ agent.lastTokenPermission }}</n-tag>
+              <n-tag v-else size="small" :bordered="false">no token yet</n-tag>
               <span class="shrink-0 text-xs text-gray-400 dark:text-dark-500">
                 {{ agent.lastSeenAt ? relativeTime(agent.lastSeenAt) : 'Waiting' }}
               </span>
@@ -369,7 +370,6 @@ const stats = computed(() => [
 ])
 
 function permissionType(permission: string): 'default' | 'info' | 'success' | 'warning' | 'error' {
-  if (permission === 'admin') return 'error'
   if (permission === 'write') return 'success'
   if (permission === 'propose') return 'warning'
   return 'default'

@@ -35,7 +35,7 @@ export default {
     agents: {
         title: '已注册 Agent',
         subtitle:
-            '每个 MCP 客户端均由其声明的 Agent 名称标识。知识归属绑定至持有 MCP 令牌的用户。权限用于控制提案模式与直接写入。',
+            '每个 MCP 客户端均由其声明的 Agent 名称标识。知识归属绑定至持有 MCP 令牌的用户。工具权限来自令牌，可在“设置 → 令牌”中配置。',
         registerAgent: '注册 Agent',
         supportedTitle: '支持的 Agent',
         supportedSubtitle: '将兼容 MCP 的 Agent 连接到单一规范的知识服务器。',
@@ -43,6 +43,9 @@ export default {
         tokensSubtitle: '创建/管理 Agent 令牌。',
         createToken: '创建令牌',
         tokenName: '令牌名称 / Agent 标识',
+        permission: '权限',
+        lastToken: '最近使用的令牌',
+        tokenOwner: '令牌持有者',
         writePermission: '写入模式',
         directWrite: '直接写入（受信任）',
         proposalOnly: '仅提交提案（审核队列）',

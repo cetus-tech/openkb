@@ -21,9 +21,10 @@ OpenKB is the durable source of project knowledge for AI agents and the people w
 1. Call \`openkb_get_context\` with the best available scope:
    - \`projectSlug\` when the work is project-specific (for this repository use \`"openkb"\`)
    - \`path\` for the current file or directory
-2. Identity for permissions:
+2. Identity:
    - Prefer the MCP header \`X-OpenKB-Agent\` with a stable name (for example \`codex\` or \`grok\`)
    - If headers cannot be set, pass \`agentName\` on each OpenKB tool call
+   - The name is an identity label only: tool permissions come from the bearer token, not the claimed name
 3. Use the returned **active** knowledge when planning and implementing the task
 
 Call \`openkb_whoami\` when you need to confirm permission level or which tools you can use.
@@ -31,7 +32,7 @@ Call \`openkb_whoami\` when you need to confirm permission level or which tools 
 ## When durable knowledge should change
 
 1. **Default:** \`openkb_remember\` — creates a reviewable proposal. It does **not** change active knowledge until a human approves it in the dashboard.
-2. **Direct save:** \`openkb_upsert_knowledge\` only when this agent has **write** permission and an intentional active update is required.
+2. **Direct save:** \`openkb_upsert_knowledge\` only when the bearer token has **write** permission and an intentional active update is required.
 3. Do not leave durable decisions only in chat or in local instruction files.
 
 Knowledge attribution is the **human who owns the MCP bearer token**, not the agent name.

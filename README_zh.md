@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
-OpenKB Server 是一款专为 AI Agent 设计的自托管 SQLite 知识库服务。Agent 可通过内置的 MCP 端点连接；用户可以通过 Web 门户添加知识及审核提案记忆。
+OpenKB Server 是面向 AI Agent 的自托管 SQLite 知识库服务。Agent 通过内置 MCP 端点连接；用户通过 Web 门户添加知识并审核提案记忆。
 
 ## 快速开始
 
@@ -70,4 +70,4 @@ http://localhost:6800/mcp
 3. 当需要在会话间持久化保存新发现时，调用 `openkb_remember`。
 4. 在 Web 门户中审核并批准提案。
 
-新创建的已认证 Agent 可以提交知识提案。管理员用户可在 Web 门户中将其提升为具有直接写入权限的信任 Agent。
+新创建的已认证 Agent 可以提交知识提案。owner 可在 **设置 → 令牌 (Settings → Tokens)** 中按令牌授予直接写入权限（member 仅限 `propose`）；Agent 声明自己的名称不会改变权限。

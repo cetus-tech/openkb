@@ -60,13 +60,13 @@ grok mcp doctor openkb
 
 Ask Grok to call `openkb_list_types`. Then ask it to call `openkb_get_context` before a real task. A memory created with `openkb_remember` appears in OpenKB **Proposals**.
 
-The first authenticated request creates `grok` in OpenKB **Agents** with `propose` permission. Open the dashboard's **Agents** page and change that identity to `write` if this Grok instance is trusted to save active knowledge directly. Do not create a second name for every session; use the same name for the same client instance.
+The first authenticated request registers `grok` in OpenKB **Agents** as an identity label. MCP permissions live on the bearer token: in **Settings → Tokens**, set this Grok token to `write` if the instance is trusted to save active knowledge directly (the default `propose` keeps memories in the review queue). Do not create a second name for every session; use the same name for the same client instance.
 
 In a running TUI session you can also open `/mcps`, confirm `openkb` is enabled, and press `r` after editing `config.toml` to refresh the server list.
 
 ## 4. Tell Grok to use OpenKB
 
-Registering an MCP server makes its tools available, but you should also explicitly tell Grok when to use them. For a one-time instruction, start Grok with a prompt like this:
+Registering an MCP server makes its tools available. Also tell Grok when to use them. For a one-time instruction, start Grok with a prompt like this:
 
 ```text
 Use the OpenKB MCP server for this task. Before starting any non-trivial work, call openkb_get_context with the current project and file path, then use the returned knowledge in your plan. Before finishing, call openkb_remember for any durable decision, rule, workflow, pitfall, or project context discovered during the task. Do not put OpenKB memories only in chat; propose them through the MCP tool.
@@ -82,7 +82,7 @@ Use the configured OpenKB MCP server as the project's durable knowledge source.
 - Before any non-trivial task, call `openkb_get_context` with the current project and path.
 - Use relevant OpenKB results when planning and implementing the task.
 - Before finishing, call `openkb_remember` to propose new knowledge or update an existing slug for review.
-- Use `openkb_upsert_knowledge` only when this agent has `write` permission and a direct active save is intentional.
+- Use `openkb_upsert_knowledge` only when the token has `write` permission and a direct active save is intentional.
 ```
 
 Start a new Grok session after changing `AGENTS.md`. You can confirm that Grok is using OpenKB when its transcript shows calls to `openkb_get_context` before work and `openkb_remember` when it learns something durable.

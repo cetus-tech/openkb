@@ -8,7 +8,6 @@ import { fileURLToPath } from 'url';
 import { OPENKB_VERSION, knowledgeTypes } from '../core/index.js';
 import { serveStatic } from './static.js';
 import type { KnowledgeService } from '../core/service.js';
-import type { AgentPermission } from '../db/db-access.js';
 import type { UserRole } from './auth.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -474,13 +473,11 @@ export function buildApp(service?: KnowledgeService) {
         if (!isOwner(request)) return reply.forbidden('Owner role required');
         const body = request.body as {
             name?: string;
-            permissionLevel?: AgentPermission;
             label?: string;
         };
         if (!body.name) return reply.badRequest('name is required');
         const { agent, created } = await service.registerOrUpdateAgent({
             name: body.name,
-            permissionLevel: body.permissionLevel ?? 'propose',
             label: body.label,
         });
         return reply.code(created ? 201 : 200).send({ agent, created });
@@ -489,29 +486,6 @@ export function buildApp(service?: KnowledgeService) {
     app.get('/v1/agents', async (request) => {
         if (!service) return { agents: [] };
         return { agents: await service.listAgents() };
-    });
-
-    app.patch('/v1/agents/:agentId/permission', async (request, reply) => {
-        if (!service) return reply.serviceUnavailable();
-        if (!isOwner(request)) return reply.forbidden('Owner role required');
-        const params = request.params as { agentId: string };
-        const body = request.body as { permissionLevel?: AgentPermission };
-        if (
-            !body.permissionLevel ||
-            !['read', 'propose', 'write', 'admin'].includes(
-                body.permissionLevel,
-            )
-        ) {
-            return reply.badRequest(
-                'permissionLevel must be one of: read, propose, write, admin',
-            );
-        }
-        const agent = await service.updateAgentPermission(
-            params.agentId,
-            body.permissionLevel,
-        );
-        if (!agent) return reply.notFound(`Agent not found: ${params.agentId}`);
-        return { agent };
     });
 
     app.delete('/v1/agents/:agentId', async (request, reply) => {

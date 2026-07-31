@@ -79,13 +79,13 @@ export interface KnowledgeVersionPage {
 
 export interface RegisterAgentInput {
   name: string
-  permissionLevel?: AgentPermission
   label?: string
   /** API/MCP token id last used by this agent (from bearer auth). */
   tokenId?: number
 }
 
-export type AgentPermission = 'read' | 'propose' | 'write' | 'admin'
+/** MCP permission granted by a bearer token. There is deliberately no admin tier: the MCP surface never gets dashboard admin powers. */
+export type AgentPermission = 'read' | 'propose' | 'write'
 
 /* ------------------------------------------------------------------ */
 /*  Output types                                                       */
@@ -110,7 +110,6 @@ export interface ChangeProposal {
 export interface AgentRow {
   id: number
   name: string
-  permission_level: AgentPermission
   label?: string | null
   last_seen_at?: string | null
   last_token_id?: number | null
@@ -121,7 +120,6 @@ export interface AgentRow {
 export interface AgentInfo {
   id: number
   name: string
-  permissionLevel: AgentPermission
   label?: string
   lastSeenAt?: string
   /** Last MCP/API token used by this agent when connecting. */
@@ -129,6 +127,8 @@ export interface AgentInfo {
   lastTokenPrefix?: string
   lastTokenName?: string
   lastUserName?: string
+  /** Permission of the last token used by this agent (display only; MCP gating reads the current request's token). */
+  lastTokenPermission?: AgentPermission
   createdAt: string
   updatedAt: string
 }
@@ -746,7 +746,6 @@ export async function registerOrUpdateAgent(db: Knex, input: RegisterAgentInput)
 
   const agentId = await insertId(db, 'agents', {
     name: input.name,
-    permission_level: input.permissionLevel ?? 'propose',
     label: input.label ?? null,
     last_seen_at: timestamp,
     last_token_id: input.tokenId ?? null,
@@ -772,7 +771,6 @@ export async function listAgents(db: Knex): Promise<AgentInfo[]> {
     .select(
       'a.id',
       'a.name',
-      'a.permission_level',
       'a.label',
       'a.last_seen_at',
       'a.last_token_id',
@@ -781,26 +779,12 @@ export async function listAgents(db: Knex): Promise<AgentInfo[]> {
       't.token_prefix as token_prefix',
       't.token_value as token_value',
       't.name as token_name',
+      't.permission_level as token_permission',
       'u.name as user_name',
       'u.email as user_email',
     )
     .orderBy('a.last_seen_at', 'desc')
   return rows.map((row) => agentFromJoinedRow(row as AgentJoinedRow))
-}
-
-export async function updateAgentPermission(
-  db: Knex,
-  agentId: string | number,
-  permissionLevel: AgentPermission,
-): Promise<AgentInfo | undefined> {
-  const timestamp = now()
-  const id = asRowId(agentId)
-  if (id == null) return undefined
-  const updated = await db<AgentRow>('agents')
-    .where({ id })
-    .update({ permission_level: permissionLevel, updated_at: timestamp })
-  if (!updated) return undefined
-  return getAgentById(db, id)
 }
 
 export async function deleteAgent(db: Knex, agentId: string | number): Promise<boolean> {
@@ -814,6 +798,7 @@ interface AgentJoinedRow extends AgentRow {
   token_prefix?: string | null
   token_value?: string | null
   token_name?: string | null
+  token_permission?: AgentPermission | null
   user_name?: string | null
   user_email?: string | null
 }
@@ -825,7 +810,6 @@ async function getAgentById(db: Knex, agentId: string | number): Promise<AgentIn
     .select(
       'a.id',
       'a.name',
-      'a.permission_level',
       'a.label',
       'a.last_seen_at',
       'a.last_token_id',
@@ -834,6 +818,7 @@ async function getAgentById(db: Knex, agentId: string | number): Promise<AgentIn
       't.token_prefix as token_prefix',
       't.token_value as token_value',
       't.name as token_name',
+      't.permission_level as token_permission',
       'u.name as user_name',
       'u.email as user_email',
     )
@@ -852,13 +837,13 @@ function agentFromJoinedRow(row: AgentJoinedRow): AgentInfo {
   return {
     id: row.id,
     name: row.name,
-    permissionLevel: row.permission_level,
     label: row.label ?? undefined,
     lastSeenAt: row.last_seen_at ?? undefined,
     lastTokenId: row.last_token_id ?? undefined,
     lastTokenPrefix: tokenShortForm(row.token_prefix, row.token_value),
     lastTokenName: row.token_name ?? undefined,
     lastUserName: row.user_name || row.user_email || undefined,
+    lastTokenPermission: row.token_permission ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

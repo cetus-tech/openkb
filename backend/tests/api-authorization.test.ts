@@ -224,7 +224,7 @@ describe('v1 authorization', () => {
         method: 'POST',
         url: '/v1/agents',
         headers: member.headers,
-        payload: { name: 'ghost', permissionLevel: 'write' },
+        payload: { name: 'ghost' },
       })
       expect(memberCreate.statusCode).toBe(403)
 
@@ -232,32 +232,76 @@ describe('v1 authorization', () => {
         method: 'POST',
         url: '/v1/agents',
         headers: owner.headers,
-        payload: { name: 'trusted', permissionLevel: 'write' },
+        payload: { name: 'trusted' },
       })
       expect(ownerCreate.statusCode).toBe(201)
       const agentId = ownerCreate.json().agent.id
-
-      const memberPerm = await app.inject({
-        method: 'PATCH',
-        url: `/v1/agents/${agentId}/permission`,
-        headers: member.headers,
-        payload: { permissionLevel: 'admin' },
-      })
-      expect(memberPerm.statusCode).toBe(403)
-
-      const ownerPerm = await app.inject({
-        method: 'PATCH',
-        url: `/v1/agents/${agentId}/permission`,
-        headers: owner.headers,
-        payload: { permissionLevel: 'admin' },
-      })
-      expect(ownerPerm.statusCode).toBe(200)
 
       const memberDel = await app.inject({ method: 'DELETE', url: `/v1/agents/${agentId}`, headers: member.headers })
       expect(memberDel.statusCode).toBe(403)
 
       const ownerDel = await app.inject({ method: 'DELETE', url: `/v1/agents/${agentId}`, headers: owner.headers })
       expect(ownerDel.statusCode).toBe(204)
+    } finally {
+      await db.destroy()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('caps token permissions for members and lets owners mint write tokens', async () => {
+    const { app, db, dir, owner, member } = await testApp()
+    try {
+      const memberWrite = await app.inject({
+        method: 'POST',
+        url: '/auth/tokens',
+        headers: member.headers,
+        payload: { name: 'member-write', permissionLevel: 'write' },
+      })
+      expect(memberWrite.statusCode).toBe(403)
+
+      const memberPropose = await app.inject({
+        method: 'POST',
+        url: '/auth/tokens',
+        headers: member.headers,
+        payload: { name: 'member-token', permissionLevel: 'propose' },
+      })
+      expect(memberPropose.statusCode).toBe(201)
+      const memberTokenId = memberPropose.json().token.id
+      expect(memberPropose.json().token.permissionLevel).toBe('propose')
+
+      const memberUpgrade = await app.inject({
+        method: 'PATCH',
+        url: `/auth/tokens/${memberTokenId}`,
+        headers: member.headers,
+        payload: { permissionLevel: 'write' },
+      })
+      expect(memberUpgrade.statusCode).toBe(403)
+
+      const memberDowngrade = await app.inject({
+        method: 'PATCH',
+        url: `/auth/tokens/${memberTokenId}`,
+        headers: member.headers,
+        payload: { permissionLevel: 'read' },
+      })
+      expect(memberDowngrade.statusCode).toBe(200)
+      expect(memberDowngrade.json().token.permissionLevel).toBe('read')
+
+      const ownerWrite = await app.inject({
+        method: 'POST',
+        url: '/auth/tokens',
+        headers: owner.headers,
+        payload: { name: 'owner-write', permissionLevel: 'write' },
+      })
+      expect(ownerWrite.statusCode).toBe(201)
+      expect(ownerWrite.json().token.permissionLevel).toBe('write')
+
+      const invalidLevel = await app.inject({
+        method: 'POST',
+        url: '/auth/tokens',
+        headers: owner.headers,
+        payload: { name: 'bad', permissionLevel: 'superuser' },
+      })
+      expect(invalidLevel.statusCode).toBe(400)
     } finally {
       await db.destroy()
       await rm(dir, { recursive: true, force: true })

@@ -50,11 +50,11 @@ codex mcp list
 
 启动一个新的 Codex 会话并要求其调用 `openkb_list_types`。然后在处理实际任务之前要求其调用 `openkb_get_context`。使用 `openkb_remember` 创建的记忆会出现在 OpenKB **提案 (Proposals)** 中。
 
-首次完成认证的请求会在 OpenKB **Agent (Agents)** 中自动创建 `codex` 并赋予 `propose` 权限。打开控制台的 **Agent** 页面，如果信任该 Codex 实例可直接保存有效知识，请将该身份权限更改为 `write`。不要为每个会话创建新名称；同一个客户端实例请使用相同的名称。
+首次完成认证的请求会在 OpenKB **Agent (Agents)** 中自动注册 `codex` 作为身份标签。MCP 权限属于 Bearer 令牌：在 **设置 → 令牌 (Settings → Tokens)** 中，如果信任该 Codex 实例可直接保存有效知识，请将该令牌设为 `write`（默认 `propose` 会让记忆进入审核队列）。不要为每个会话创建新名称；同一个客户端实例请使用相同的名称。
 
 ## 4. 指示 Codex 使用 OpenKB
 
-注册 MCP 服务器可以使其工具可用，但你还应该显式告诉 Codex 何时使用它们。对于一次性指令，启动 Codex 并使用如下 Prompt：
+注册 MCP 服务器可以使其工具可用。还需要显式告诉 Codex 何时使用它们。对于一次性指令，启动 Codex 并使用如下 Prompt：
 
 ```text
 Use the OpenKB MCP server for this task. Before starting any non-trivial work, call openkb_get_context with the current project and file path, then use the returned knowledge in your plan. Before finishing, call openkb_remember for any durable decision, rule, workflow, pitfall, or project context discovered during the task. Do not put OpenKB memories only in chat; propose them through the MCP tool.
@@ -70,7 +70,7 @@ Use the configured OpenKB MCP server as the project's durable knowledge source.
 - Before any non-trivial task, call `openkb_get_context` with the current project and path.
 - Use relevant OpenKB results when planning and implementing the task.
 - Before finishing, call `openkb_remember` to propose new knowledge or update an existing slug for review.
-- Use `openkb_upsert_knowledge` only when this agent has `write` permission and a direct active save is intentional.
+- Use `openkb_upsert_knowledge` only when the token has `write` permission and a direct active save is intentional.
 ```
 
 更改 `AGENTS.md` 后启动一个新的 Codex 会话。当 Codex 的 Transcript 显示在工作前调用了 `openkb_get_context` 并在学到持久知识时调用了 `openkb_remember` 时，你可以确认 Codex 正在使用 OpenKB。Agent 身份和项目作用域可以通过 [MCP 集成指南](mcp) 中描述的可选请求头和知识作用域进行精细化调整。

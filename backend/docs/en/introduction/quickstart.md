@@ -1,6 +1,6 @@
 # Quick Start
 
-OpenKB is a brain for AI agents. The agent-facing service is MCP; the web dashboard is where people add knowledge and review changes.
+OpenKB stores durable knowledge for AI agents. The agent-facing service is MCP; the web dashboard is where people add knowledge and review changes.
 
 ### MCP in plain language
 
@@ -87,7 +87,7 @@ After connecting a client, explicitly tell the agent to use OpenKB MCP. For Code
 Every MCP client needs:
 
 - A **bearer token** owned by a team member (knowledge attribution uses that user).
-- An **agent name** (client-asserted) for permissions, such as `codex`, `grok`, or `codex-ci`.
+- An **agent name** (client-asserted) as an identity label, such as `codex`, `grok`, or `codex-ci` (permissions come from the bearer token).
 
 `AGENTS.md` tells an agent to use OpenKB, but it does not register the agent identity. Configure the agent name in the MCP client's connection settings:
 
@@ -116,7 +116,7 @@ bearer_token_env_var = "OPENKB_TOKEN"
 http_headers = { "X-OpenKB-Agent" = "codex" }
 ```
 
-Start a new Codex session and call `openkb_list_types`. The first authenticated request automatically creates the `codex` identity with `propose` permission. Check **Agents** in the dashboard and change it to `write` only when it is trusted to update active knowledge. Use `admin` only for an agent that must manage other agents.
+Start a new Codex session and call `openkb_list_types`. The first authenticated request automatically registers the `codex` identity in **Agents**. MCP permissions live on the bearer token: in **Settings → Tokens**, set it to `write` only when the client is trusted to update active knowledge. Admin permissions are managed via the web dashboard.
 
 Use the same identity on every session. Changing the name creates a second agent record with separate permission and activity history.
 

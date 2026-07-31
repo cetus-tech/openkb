@@ -19,6 +19,7 @@ OpenKB 将浏览器身份认证与 MCP 令牌分离开来：
 - 用户包含 `email`、显示名称 `name` 和角色 `role`（`owner` 或 `member`）。可在**用户管理 (Users)** 中管理账号（所有者 owner 可创建/删除账号并更改角色）。
 - 用户登录和注册会在 HttpOnly Cookie 中生成 30 天的浏览器 Session。Session 哈希保存在 `user_sessions` 表中。
 - MCP/API 令牌需要在 **设置 → MCP 令牌 (Settings → MCP tokens)** 或通过 `POST /auth/tokens` 显式创建（登录时不会自动生成）。
+- 每个令牌都带有一个 MCP 权限等级（`read`、`propose` 或 `write`，默认 `propose`）。owner 可设置任意等级，member 仅限 `read`/`propose`。管理员权限通过 Web 控制台管理。令牌等级决定 MCP 工具面；Agent 名称只是身份标签，绝不改变权限。
 - 完整的密钥保存在 `api_tokens.token_value` 中。认证服务匹配 Bearer 字符串与该列。令牌可在设置中列出、重命名、复制和撤销。
 - 登出系统仅清除浏览器 Session，不会撤销 MCP/API 令牌。可在设置中显式撤销或通过 `DELETE /auth/tokens/:id` 撤销。
 - `OPENKB_TOKEN` 是 MCP 客户端使用的环境变量，并非服务端数据库配置项。
@@ -30,7 +31,7 @@ OpenKB 将浏览器身份认证与 MCP 令牌分离开来：
 - **任意已认证用户（owner 或 member）** 都可以读取知识、搜索、获取上下文、创建提案，以及编辑待处理（open）提案的内容。
 - **仅 owner** 可以创建/删除知识、删除知识版本、决定提案状态（批准/拒绝/重新开启）、删除提案、管理 Agent（创建、修改权限、删除），以及读写应用设置。
 
-member 是只读 + 提案用户；直接写入知识以及审查决定需要 owner 角色。无论请求使用浏览器 Session 还是 Bearer 令牌，以上规则均适用。
+member 是只读 + 提案用户；直接写入知识以及审查决定需要 owner 角色。无论请求使用浏览器 Session 还是 Bearer 令牌，以上规则均适用。（REST 授权依据用户角色；MCP 工具授权依据令牌权限等级。参见 MCP 集成文档。）
 
 ## 公网部署
 

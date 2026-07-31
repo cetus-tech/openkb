@@ -2,6 +2,7 @@ import Fastify from 'fastify'
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { createHash, randomBytes, scryptSync } from 'node:crypto'
 import type { Knex } from 'knex'
+import type { AgentPermission } from '../db/db-access.js'
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ interface TokenRow {
   token_prefix?: string | null
   /** Full bearer secret; used for auth lookup and dashboard copy. */
   token_value?: string | null
+  permission_level?: AgentPermission | null
   created_at: string
   last_used_at?: string | null
 }
@@ -56,6 +58,7 @@ function publicToken(row: TokenRow) {
     name: row.name,
     tokenPrefix: row.token_prefix ?? (row.token_value ? tokenPreview(row.token_value) : 'okb_...'),
     value: row.token_value ?? null,
+    permissionLevel: row.permission_level ?? 'propose',
     createdAt: row.created_at,
     lastUsedAt: row.last_used_at,
     userId: row.user_id,
@@ -88,6 +91,8 @@ export interface AuthToken {
   /** Owning human user; required for MCP and attribution. */
   userId: number
   userEmail: string
+  /** MCP permission granted by this token; gates the MCP tool surface. */
+  permissionLevel: AgentPermission
 }
 
 export type UserRole = 'owner' | 'member'
@@ -122,6 +127,7 @@ export async function lookupAuthToken(db: Knex, authorization?: string): Promise
     id: row.id,
     userId: user.id,
     userEmail: user.email,
+    permissionLevel: row.permission_level ?? 'propose',
   }
 }
 
@@ -297,14 +303,23 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
     if (!context?.userId) return reply.unauthorized('Sign in before creating an API token')
     const user = await findUser(db, context.userId)
     if (!user) return reply.unauthorized('Sign in before creating an API token')
-    const body = request.body as { name?: string; tokenName?: string }
+    const body = request.body as { name?: string; tokenName?: string; permissionLevel?: string }
     const name = String(body.name ?? body.tokenName ?? 'mcp-client').trim() || 'mcp-client'
+    const permissionLevel = (body.permissionLevel ?? 'propose') as AgentPermission
+    if (!['read', 'propose', 'write'].includes(permissionLevel)) {
+      return reply.badRequest('permissionLevel must be one of: read, propose, write')
+    }
+    // MCP permission lives on the token; members cannot mint write credentials.
+    if (user.role !== 'owner' && permissionLevel === 'write') {
+      return reply.forbidden('Members can only create tokens with read or propose permission')
+    }
     const plain = generateToken()
     const tokenId = await insertId(db, 'api_tokens', {
       user_id: user.id,
       name,
       token_prefix: tokenPreview(plain),
       token_value: plain,
+      permission_level: permissionLevel,
       created_at: now(),
       last_used_at: null,
     })
@@ -316,6 +331,7 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
         user_id: user.id,
         token_prefix: tokenPreview(plain),
         token_value: plain,
+        permission_level: permissionLevel,
         created_at: now(),
         last_used_at: null,
       }),
@@ -339,18 +355,37 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
   app.patch('/auth/tokens/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     const context = await lookupAuthContext(db, request)
     if (!context?.userId) return reply.unauthorized('Sign in before managing API tokens')
+    const user = await findUser(db, context.userId)
+    if (!user) return reply.unauthorized('Sign in before managing API tokens')
     const params = request.params as { id: string }
-    const body = request.body as { name?: string }
-    const name = String(body.name ?? '').trim()
-    if (!name) return reply.badRequest('name is required')
-    if (name.length > 80) return reply.badRequest('name must be at most 80 characters')
+    const body = request.body as { name?: string; permissionLevel?: string }
     const tokenId = Number(params.id)
     if (!Number.isFinite(tokenId)) return reply.badRequest('Invalid token id')
     const target = await db<TokenRow>('api_tokens').where({ id: tokenId, user_id: context.userId }).first()
     if (!target) return reply.notFound('Token not found')
-    await db<TokenRow>('api_tokens').where({ id: tokenId, user_id: context.userId }).update({ name })
+
+    const updates: Partial<TokenRow> = {}
+    if (body.name !== undefined) {
+      const name = String(body.name).trim()
+      if (!name) return reply.badRequest('name is required')
+      if (name.length > 80) return reply.badRequest('name must be at most 80 characters')
+      updates.name = name
+    }
+    if (body.permissionLevel !== undefined) {
+      const permissionLevel = body.permissionLevel as AgentPermission
+      if (!['read', 'propose', 'write'].includes(permissionLevel)) {
+        return reply.badRequest('permissionLevel must be one of: read, propose, write')
+      }
+      if (user.role !== 'owner' && permissionLevel === 'write') {
+        return reply.forbidden('Members can only assign read or propose permission to tokens')
+      }
+      updates.permission_level = permissionLevel
+    }
+    if (!Object.keys(updates).length) return reply.badRequest('No changes provided')
+
+    await db<TokenRow>('api_tokens').where({ id: tokenId, user_id: context.userId }).update(updates)
     return {
-      token: publicToken({ ...target, name }),
+      token: publicToken({ ...target, ...updates }),
     }
   })
 

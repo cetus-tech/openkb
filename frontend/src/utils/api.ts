@@ -48,13 +48,14 @@ export interface KnowledgeVersionPage {
 export interface Agent {
   id: number
   name: string
-  permissionLevel: 'read' | 'propose' | 'write' | 'admin' | string
   label?: string
   lastSeenAt?: string
   lastTokenId?: number
   lastTokenPrefix?: string
   lastTokenName?: string
   lastUserName?: string
+  /** Permission of the token this agent last used (display only). */
+  lastTokenPermission?: 'read' | 'propose' | 'write' | string
   createdAt?: string
 }
 

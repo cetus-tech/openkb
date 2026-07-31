@@ -46,6 +46,7 @@ async function createSchema(db: Knex) {
     table.string('name').notNullable()
     table.string('token_prefix')
     table.text('token_value').notNullable().unique()
+    table.string('permission_level').notNullable().defaultTo('propose')
     table.string('created_at').notNullable()
     table.string('last_used_at')
   })

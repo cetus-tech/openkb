@@ -73,8 +73,8 @@ describe('AgentsView', () => {
       ok: true,
       json: async () => ({
         agents: [
-          { id: '1', name: 'Claude Agent', permissionLevel: 'admin', defaultExportTypes: ['context'], createdAt: '2024-01-01' },
-          { id: '2', name: 'Cursor Agent', permissionLevel: 'read', createdAt: '2024-01-02' },
+          { id: '1', name: 'Claude Agent', lastTokenPermission: 'write', createdAt: '2024-01-01' },
+          { id: '2', name: 'Cursor Agent', lastTokenPermission: 'read', createdAt: '2024-01-02' },
         ],
       }),
     })
@@ -83,7 +83,7 @@ describe('AgentsView', () => {
     await new Promise((r) => setTimeout(r, 100))
     expect(wrapper.text()).toContain('Claude Agent')
     expect(wrapper.text()).toContain('Cursor Agent')
-    expect(wrapper.text()).toContain('Administrator')
+    expect(wrapper.text()).toContain('write')
   })
 
   it('shows add modal when clicking register', async () => {

@@ -159,34 +159,59 @@ describe('MCP server — agent identity & permission scoping', () => {
     }
   })
 
-  it('new agent with agentName is registered; lookup is by agentName only', async () => {
+  it('agent name is identity only; permission comes from the token', async () => {
     const { dir, db, service } = await testService()
     try {
-      const names = await listToolNames(service, 'cursor-workspace', { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true })
+      const names = await listToolNames(service, 'cursor-workspace', {
+        userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'write' })
       expect(names).toContain('openkb_search')
-      // authenticated without existing agent gets propose on register path via tools/call;
-      // tools/list uses initial resolve: authenticated true → new agent at propose
-      expect(names).toContain('openkb_remember')
+      expect(names).toContain('openkb_upsert_knowledge')
 
-      // Verify it was persisted
+      // Verify the name was persisted as an identity label (no permission field)
       const agent = await service.lookupAgent('cursor-workspace')
       expect(agent).toBeDefined()
-      expect(agent!.permissionLevel).toBe('propose')
+      expect(agent!.lastTokenId).toBeUndefined()
+      expect(agent!.lastTokenPermission).toBeUndefined()
     } finally {
       await db.destroy()
       await rm(dir, { recursive: true, force: true })
     }
   })
 
-  it('agent promoted to propose sees propose tools', async () => {
+  it('claiming a registered agent name cannot grant permissions it never had', async () => {
     const { dir, db, service } = await testService()
     try {
-      // Register agent at propose level
-      await service.registerOrUpdateAgent({
-        name: 'codex-agent',
-        permissionLevel: 'propose'})
+      await service.registerOrUpdateAgent({ name: 'admin-bot' })
+      const names = await listToolNames(service, 'admin-bot', {
+        userId: 'user_1', userEmail: 'member@test.com', authenticated: true, tokenPermission: 'read' })
+      expect(names).not.toContain('openkb_remember')
+      expect(names).not.toContain('openkb_upsert_knowledge')
+      expect(names).not.toContain('openkb_delete_knowledge')
+      expect(names).not.toContain('openkb_list_agents')
+    } finally {
+      await db.destroy()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
 
-      const names = await listToolNames(service, 'codex-agent', { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true })
+  it('write permission on the token works for any claimed name', async () => {
+    const { dir, db, service } = await testService()
+    try {
+      const names = await listToolNames(service, 'brand-new-name', {
+        userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'write' })
+      expect(names).toContain('openkb_upsert_knowledge')
+      expect(names).toContain('openkb_delete_knowledge')
+      expect(names).not.toContain('openkb_list_agents')
+    } finally {
+      await db.destroy()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('token with propose permission sees propose tools', async () => {
+    const { dir, db, service } = await testService()
+    try {
+      const names = await listToolNames(service, 'codex-agent', { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'propose' })
       expect(names).toContain('openkb_whoami')
       expect(names).toContain('openkb_remember')
       expect(names).toContain('openkb_list_proposals')
@@ -199,14 +224,10 @@ describe('MCP server — agent identity & permission scoping', () => {
     }
   })
 
-  it('agent promoted to write sees write tools', async () => {
+  it('token with write permission sees write tools', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'hermes-ken',
-        permissionLevel: 'write'})
-
-      const names = await listToolNames(service, 'hermes-ken', { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true })
+      const names = await listToolNames(service, 'hermes-ken', { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'write' })
       expect(names).toContain('openkb_remember')
       expect(names).toContain('openkb_upsert_knowledge')
       expect(names).toContain('openkb_delete_knowledge')
@@ -217,33 +238,28 @@ describe('MCP server — agent identity & permission scoping', () => {
     }
   })
 
-  it('admin agent sees admin tools', async () => {
+  it('tokens max out at write; no admin tier on the MCP surface', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'admin-agent',
-        permissionLevel: 'admin'})
-
-      const names = await listToolNames(service, 'admin-agent', { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true })
-      expect(names).toContain('openkb_list_agents')
+      const names = await listToolNames(service, 'write-agent', { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'write' })
+      expect(names).toContain('openkb_upsert_knowledge')
+      expect(names).not.toContain('openkb_list_agents')
     } finally {
       await db.destroy()
       await rm(dir, { recursive: true, force: true })
     }
   })
 
-  it('tools/call enforces permission — write tool rejected for read agent', async () => {
+  it('tools/call enforces permission — write tool rejected for read token', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'read-only',
-        permissionLevel: 'read'})
-
       const res = await call(service, 'tools/call', {
         name: 'openkb_upsert_knowledge',
         arguments: {
           slug: 'test', title: 'Test',
-          summary: 'Test', content: 'Test', agentName: 'read-only'}})
+          summary: 'Test', content: 'Test', agentName: 'read-only'}},
+        1,
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'read' })
       expectToolError(res)
     } finally {
       await db.destroy()
@@ -443,16 +459,12 @@ describe('MCP server — base read tools', () => {
   it('openkb_whoami reports identity, token owner, permission, and available tools', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'whoami-agent',
-        permissionLevel: 'propose',
-      })
       const res = await call(
         service,
         'tools/call',
         { name: 'openkb_whoami', arguments: { agentName: 'whoami-agent' } },
         1,
-        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true },
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'propose' },
       )
       const text = (res as any).result.content[0].text
       expect(text).toContain('agent: whoami-agent')
@@ -471,10 +483,6 @@ describe('MCP server — base read tools', () => {
   it('openkb_remember attributes createdBy to token owner email', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'attr-agent',
-        permissionLevel: 'propose',
-      })
       await call(
         service,
         'tools/call',
@@ -488,7 +496,7 @@ describe('MCP server — base read tools', () => {
           },
         },
         1,
-        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true },
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'propose' },
       )
       const proposals = await service.listProposals()
       expect(proposals[0]?.createdBy).toBe('owner@test.com')
@@ -526,17 +534,15 @@ describe('MCP server — propose-level tools', () => {
   it('openkb_remember creates a proposal (write agent)', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'hermes-proposer',
-        permissionLevel: 'write'})
-
       const res = await call(service, 'tools/call', {
         name: 'openkb_remember',
         arguments: {
           title: 'New Rule',
           summary: 'Always query OpenKB',
           content: 'Before making changes, call openkb_search.',
-          agentName: 'hermes-proposer'}})
+          agentName: 'hermes-proposer'}},
+        1,
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'write' })
       const result = (res as any).result
       expect(result.content[0].text).toContain('Memory proposal created')
       expect(result.content[0].text).toContain('open')
@@ -550,10 +556,6 @@ describe('MCP server — propose-level tools', () => {
   it('openkb_remember creates a scoped memory proposal', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'hermes-memory',
-        permissionLevel: 'propose'})
-
       const res = await call(service, 'tools/call', {
         name: 'openkb_remember',
         arguments: {
@@ -562,7 +564,9 @@ describe('MCP server — propose-level tools', () => {
           content: '# API auth test setup\n\nCreate the owner user before protected API calls.',
           type: 'rule',
           pathPatterns: ['backend/tests/**'],
-          agentName: 'hermes-memory'}})
+          agentName: 'hermes-memory'}},
+        1,
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'propose' })
 
       const result = (res as any).result
       expect(result.content[0].text).toContain('Memory proposal created')
@@ -579,9 +583,6 @@ describe('MCP server — propose-level tools', () => {
   it('openkb_list_proposals lists open proposals', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'hermes-memory',
-        permissionLevel: 'propose'})
       await service.proposeKnowledge({
         title: 'Open proposal',
         summary: 'Waiting for review',
@@ -591,7 +592,9 @@ describe('MCP server — propose-level tools', () => {
 
       const res = await call(service, 'tools/call', {
         name: 'openkb_list_proposals',
-        arguments: { agentName: 'hermes-memory' }})
+        arguments: { agentName: 'hermes-memory' }},
+        1,
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'propose' })
       const text = (res as any).result.content[0].text
       expect(text).toContain('Open proposal')
       expect(text).toContain('open')
@@ -604,9 +607,6 @@ describe('MCP server — propose-level tools', () => {
   it('openkb_get_proposal returns full proposal content', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'hermes-memory',
-        permissionLevel: 'propose'})
       const proposal = await service.proposeKnowledge({
         title: 'Detailed proposal',
         summary: 'Has full body',
@@ -616,7 +616,9 @@ describe('MCP server — propose-level tools', () => {
 
       const res = await call(service, 'tools/call', {
         name: 'openkb_get_proposal',
-        arguments: { id: proposal.id, agentName: 'hermes-memory' }})
+        arguments: { id: proposal.id, agentName: 'hermes-memory' }},
+        1,
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'propose' })
       const text = (res as any).result.content[0].text
       expect(text).toContain(proposal.id)
       expect(text).toContain('Detailed proposal')
@@ -630,10 +632,6 @@ describe('MCP server — propose-level tools', () => {
   it('openkb_remember with slug proposes update to existing doc', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'updater',
-        permissionLevel: 'write'})
-
       const res = await call(service, 'tools/call', {
         name: 'openkb_remember',
         arguments: {
@@ -641,7 +639,9 @@ describe('MCP server — propose-level tools', () => {
           title: 'Hermes MCP Integration',
           summary: 'Updated MCP spec',
           content: 'Updated content.',
-          agentName: 'updater'}})
+          agentName: 'updater'}},
+        1,
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'write' })
       const result = (res as any).result
       expect(result.content[0].text).toContain('hermes-mcp')
     } finally {
@@ -655,10 +655,6 @@ describe('MCP server — write-level tools', () => {
   it('openkb_upsert_knowledge creates a new doc directly', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'hermes-writer',
-        permissionLevel: 'write'})
-
       const res = await call(service, 'tools/call', {
         name: 'openkb_upsert_knowledge',
         arguments: {
@@ -667,7 +663,9 @@ describe('MCP server — write-level tools', () => {
           summary: 'Written by Hermes',
           content: '# Direct write\nThis was written directly by the agent.',
           type: 'context',
-          agentName: 'hermes-writer'}})
+          agentName: 'hermes-writer'}},
+        1,
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'write' })
       const result = (res as any).result
       expect(result.content[0].text).toContain('direct-write')
       expect(result.content[0].text).toContain('version 1')
@@ -687,10 +685,6 @@ describe('MCP server — write-level tools', () => {
   it('openkb_upsert_knowledge updates an existing doc', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'hermes-writer',
-        permissionLevel: 'write'})
-
       await call(service, 'tools/call', {
         name: 'openkb_upsert_knowledge',
         arguments: {
@@ -699,7 +693,9 @@ describe('MCP server — write-level tools', () => {
           summary: 'Updated MCP spec',
           content: '# Updated content',
           type: 'spec',
-          agentName: 'hermes-writer'}})
+          agentName: 'hermes-writer'}},
+        1,
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'write' })
 
       const doc = await service.getKnowledge('hermes-mcp')
       expect(doc).toBeDefined()
@@ -714,9 +710,6 @@ describe('MCP server — write-level tools', () => {
   it('openkb_upsert_knowledge activates an inactive existing doc', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'hermes-writer',
-        permissionLevel: 'write'})
       await service.upsertKnowledge({
         slug: 'inactive-mcp',
         title: 'Inactive MCP Knowledge',
@@ -732,7 +725,9 @@ describe('MCP server — write-level tools', () => {
           title: 'Inactive MCP Knowledge',
           summary: 'Restored knowledge',
           content: 'Restored content',
-          agentName: 'hermes-writer'}})
+          agentName: 'hermes-writer'}},
+        1,
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'write' })
 
       const doc = await service.getKnowledge('inactive-mcp')
       expect(doc!.status).toBe('active')
@@ -746,15 +741,13 @@ describe('MCP server — write-level tools', () => {
   it('openkb_delete_knowledge removes a doc', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'hermes-deleter',
-        permissionLevel: 'write'})
-
       const res = await call(service, 'tools/call', {
         name: 'openkb_delete_knowledge',
         arguments: {
           slug: 'cli-workflow',
-          agentName: 'hermes-deleter'}})
+          agentName: 'hermes-deleter'}},
+        1,
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'write' })
       expect((res as any).result.content[0].text).toContain('deleted')
 
       const doc = await service.getKnowledge('cli-workflow')
@@ -768,15 +761,13 @@ describe('MCP server — write-level tools', () => {
   it('openkb_delete_knowledge returns error for missing doc', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'hermes-deleter',
-        permissionLevel: 'write'})
-
       const res = await call(service, 'tools/call', {
         name: 'openkb_delete_knowledge',
         arguments: {
           slug: 'nonexistent',
-          agentName: 'hermes-deleter'}})
+          agentName: 'hermes-deleter'}},
+        1,
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'write' })
       expectToolError(res)
     } finally {
       await db.destroy()
@@ -787,10 +778,6 @@ describe('MCP server — write-level tools', () => {
   it('read-level agent cannot call write tools', async () => {
     const { dir, db, service } = await testService()
     try {
-      await service.registerOrUpdateAgent({
-        name: 'read-only',
-        permissionLevel: 'read'})
-
       const res = await call(service, 'tools/call', {
         name: 'openkb_upsert_knowledge',
         arguments: {
@@ -798,47 +785,9 @@ describe('MCP server — write-level tools', () => {
           title: 'Fail',
           summary: 'Fail',
           content: 'Fail',
-          agentName: 'read-only'}})
-      expectToolError(res)
-    } finally {
-      await db.destroy()
-      await rm(dir, { recursive: true, force: true })
-    }
-  })
-})
-
-describe('MCP server — admin-level tools', () => {
-  it('openkb_list_agents returns registered agents', async () => {
-    const { dir, db, service } = await testService()
-    try {
-      // Register some agents
-      await service.registerOrUpdateAgent({ name: 'agent-a', permissionLevel: 'read' })
-      await service.registerOrUpdateAgent({ name: 'agent-b', permissionLevel: 'write' })
-      await service.registerOrUpdateAgent({ name: 'agent-c', permissionLevel: 'admin' })
-
-      // Admin calls list_agents
-      const res = await call(service, 'tools/call', {
-        name: 'openkb_list_agents',
-        arguments: { agentName: 'agent-c' }})
-      const result = (res as any).result
-      // The call also registers the caller, so there should be 4 agents
-      expect(result.content[0].text).toContain('agent-a')
-      expect(result.content[0].text).toContain('agent-b')
-      expect(result.content[0].text).toContain('agent-c')
-    } finally {
-      await db.destroy()
-      await rm(dir, { recursive: true, force: true })
-    }
-  })
-
-  it('non-admin agent cannot call list_agents', async () => {
-    const { dir, db, service } = await testService()
-    try {
-      await service.registerOrUpdateAgent({ name: 'read-only', permissionLevel: 'read' })
-
-      const res = await call(service, 'tools/call', {
-        name: 'openkb_list_agents',
-        arguments: { agentName: 'read-only' }})
+          agentName: 'read-only'}},
+        1,
+        { userId: 'user_1', userEmail: 'owner@test.com', authenticated: true, tokenPermission: 'read' })
       expectToolError(res)
     } finally {
       await db.destroy()

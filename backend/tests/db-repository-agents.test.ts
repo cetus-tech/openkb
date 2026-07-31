@@ -7,7 +7,6 @@ import {
   registerOrUpdateAgent,
   lookupAgent,
   listAgents,
-  updateAgentPermission,
   deleteAgent,
   deleteKnowledge,
   type UpsertKnowledgeInput} from '../src/db/db-access.js'
@@ -25,12 +24,11 @@ async function sqliteDb() {
 }
 
 describe('db agents', () => {
-  it('registers a new agent with default propose permission', async () => {
+  it('registers a new agent as an identity label', async () => {
     const { dir, db } = await sqliteDb()
     try {
       const { agent } = await registerOrUpdateAgent(db, { name: 'test-agent' })
       expect(agent.name).toBe('test-agent')
-            expect(agent.permissionLevel).toBe('propose')
       expect(typeof agent.id).toBe('number')
     } finally {
       await db.destroy()
@@ -38,15 +36,13 @@ describe('db agents', () => {
     }
   })
 
-  it('registers a new agent with custom permission', async () => {
+  it('registers a new agent with a label', async () => {
     const { dir, db } = await sqliteDb()
     try {
       const { agent } = await registerOrUpdateAgent(db, {
         name: 'write-agent',
-        permissionLevel: 'write',
         label: 'Hermes instance',
       })
-      expect(agent.permissionLevel).toBe('write')
       expect(agent.label).toBe('Hermes instance')
     } finally {
       await db.destroy()
@@ -93,6 +89,7 @@ describe('db agents', () => {
       expect(agent.lastTokenId).toBe(tokenId)
       expect(agent.lastTokenPrefix).toBe('okb_aabb...3344')
       expect(agent.lastTokenName).toBe('seed')
+      expect(agent.lastTokenPermission).toBe('propose')
     } finally {
       await db.destroy()
       await rm(dir, { recursive: true, force: true })
@@ -130,24 +127,6 @@ describe('db agents', () => {
     }
   })
 
-  it('updateAgentPermission changes permission level', async () => {
-    const { dir, db } = await sqliteDb()
-    try {
-      const { agent } = await registerOrUpdateAgent(db, { name: 'promotable' })
-      expect(agent.permissionLevel).toBe('propose')
-
-      const updated = await updateAgentPermission(db, agent.id, 'write')
-      expect(updated).toBeDefined()
-      expect(updated!.permissionLevel).toBe('write')
-
-      const lookedUp = await lookupAgent(db, 'promotable')
-      expect(lookedUp!.permissionLevel).toBe('write')
-    } finally {
-      await db.destroy()
-      await rm(dir, { recursive: true, force: true })
-    }
-  })
-
   it('deleteAgent removes the agent', async () => {
     const { dir, db } = await sqliteDb()
     try {
@@ -156,17 +135,6 @@ describe('db agents', () => {
       expect(deleted).toBe(true)
       const found = await lookupAgent(db, 'to-delete')
       expect(found).toBeUndefined()
-    } finally {
-      await db.destroy()
-      await rm(dir, { recursive: true, force: true })
-    }
-  })
-
-  it('updateAgentPermission on nonexistent agent returns undefined', async () => {
-    const { dir, db } = await sqliteDb()
-    try {
-      const result = await updateAgentPermission(db, 'nonexistent', 'write')
-      expect(result).toBeUndefined()
     } finally {
       await db.destroy()
       await rm(dir, { recursive: true, force: true })
