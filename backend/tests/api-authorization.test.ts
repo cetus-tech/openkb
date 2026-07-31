@@ -463,6 +463,43 @@ describe('v1 authorization', () => {
     }
   })
 
+  it('derives knowledge and proposal attribution from the authenticated user, ignoring client input', async () => {
+    const { app, db, dir, owner, member } = await testApp()
+    try {
+      const create = await app.inject({
+        method: 'POST',
+        url: '/v1/knowledge',
+        headers: owner.headers,
+        payload: {
+          slug: 'attr-doc',
+          title: 'A',
+          summary: 'A',
+          content: 'A',
+          createdBy: 'spoofed@evil.com',
+        },
+      })
+      expect(create.statusCode).toBe(201)
+      expect(create.json().knowledge.createdBy).toBe('owner@test.com')
+
+      const proposal = await app.inject({
+        method: 'POST',
+        url: '/v1/proposals',
+        headers: member.headers,
+        payload: {
+          title: 'P',
+          summary: 'S',
+          content: 'C',
+          createdBy: 'spoofed@evil.com',
+        },
+      })
+      expect(proposal.statusCode).toBe(201)
+      expect(proposal.json().proposal.createdBy).toBe('member@test.com')
+    } finally {
+      await db.destroy()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
   it('restricts app settings access to owners', async () => {
     const { app, db, dir, owner, member } = await testApp()
     try {

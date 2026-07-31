@@ -49,6 +49,12 @@ function isAdmin(request: FastifyRequest): boolean {
     return isAdminRole(authContext?.userRole);
 }
 
+/** Authenticated user's email (attached by v1AuthHook); used for attribution. */
+function currentUserEmail(request: FastifyRequest): string | undefined {
+    const authContext = (request as FastifyRequest & { authContext?: { userEmail?: string } }).authContext;
+    return authContext?.userEmail;
+}
+
 function compareDocs(a: DocEntry, b: DocEntry): number {
     return a.order - b.order || a.path.localeCompare(b.path);
 }
@@ -228,7 +234,6 @@ export function buildApp(service?: KnowledgeService) {
             content?: string;
             scope?: Record<string, unknown>;
             changeSummary?: string;
-            createdBy?: string;
         };
         if (!body.slug || !body.title || !body.summary || !body.content)
             return reply.badRequest(
@@ -246,7 +251,8 @@ export function buildApp(service?: KnowledgeService) {
             content: body.content,
             scope: body.scope,
             changeSummary: body.changeSummary,
-            createdBy: body.createdBy,
+            // Attribution is server-derived from the authenticated user, never client-supplied.
+            createdBy: currentUserEmail(request),
         });
         return reply.code(201).send({ knowledge });
     });
@@ -338,7 +344,6 @@ export function buildApp(service?: KnowledgeService) {
             type?: string;
             content?: string;
             scope?: Record<string, unknown>;
-            createdBy?: string;
         };
         if (!body.title || !body.summary || !body.content)
             return reply.badRequest('title, summary, and content are required');
@@ -353,7 +358,7 @@ export function buildApp(service?: KnowledgeService) {
                 type: type as never,
                 content: body.content,
                 scope: body.scope,
-                createdBy: body.createdBy,
+                createdBy: currentUserEmail(request),
             });
             return reply.code(201).send({ proposal });
         } catch (error) {

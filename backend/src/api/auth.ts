@@ -109,6 +109,8 @@ export interface AuthContext {
   sessionId?: number
   /** Resolved from the owning user record; attached by v1AuthHook. */
   userRole?: UserRole
+  /** Resolved from the owning user record; attached by v1AuthHook. */
+  userEmail?: string
 }
 
 export const SESSION_COOKIE_NAME = 'openkb_session'
@@ -245,6 +247,7 @@ export function v1AuthHook(db: Knex) {
     ;(request as FastifyRequest & { authContext: AuthContext }).authContext = {
       ...auth.context,
       userRole: auth.user.role as UserRole,
+      userEmail: auth.user.email,
     }
   }
 }

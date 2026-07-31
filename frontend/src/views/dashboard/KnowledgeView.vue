@@ -362,17 +362,6 @@ async function onImportFiles(event: Event) {
   let ok = 0
   const failures: string[] = []
   try {
-    let currentUserLabel = ''
-    try {
-      const session = await apiFetch<{ user: { name?: string; email?: string; id?: number } }>('/auth/session')
-      currentUserLabel =
-        session.user?.name?.trim()
-        || session.user?.email?.trim()
-        || (session.user?.id != null ? String(session.user.id) : '')
-    } catch {
-      currentUserLabel = ''
-    }
-
     for (const file of files) {
       try {
         const text = await file.text()
@@ -380,7 +369,7 @@ async function onImportFiles(event: Event) {
         if (!parsed.slug || !parsed.title || !parsed.summary || !parsed.content.trim()) {
           throw new Error('Missing slug, title, summary, or content')
         }
-        const createdBy = parsed.createdBy?.trim() || currentUserLabel
+        // Attribution is set server-side from the authenticated user.
         await apiFetch('/v1/knowledge', {
           method: 'POST',
           body: JSON.stringify({
@@ -392,7 +381,6 @@ async function onImportFiles(event: Event) {
             content: parsed.content,
             scope: parsed.scope,
             changeSummary: `Imported from ${file.name}`,
-            ...(createdBy ? { createdBy } : {}),
           }),
         })
         ok += 1
