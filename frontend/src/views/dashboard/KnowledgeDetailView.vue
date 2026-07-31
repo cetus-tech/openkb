@@ -181,23 +181,23 @@ const statusOptions = computed(() => [
 const selectedVersion = computed(() => versions.value.find((v) => v.id === selectedVersionId.value) ?? null)
 const editButtonLabel = computed(() =>
   selectedVersion.value && !selectedVersion.value.current
-    ? 'Restore as new version'
-    : 'Edit as new version',
+    ? i18n.t('knowledge.restoreAsNewVersion')
+    : i18n.t('knowledge.editAsNewVersion'),
 )
 const editHeading = computed(() =>
   selectedVersion.value && !selectedVersion.value.current
-    ? `Restore from v${selectedVersion.value.version}`
-    : 'Edit as new version',
+    ? i18n.t('knowledge.restoreFromVersion').replace('{version}', String(selectedVersion.value.version))
+    : i18n.t('knowledge.editAsNewVersion'),
 )
 const editSubtitle = computed(() =>
   selectedVersion.value && !selectedVersion.value.current
-    ? 'Saving creates a new current version from this snapshot. History stays intact.'
-    : 'Snapshots are immutable. Saving creates a new version from this form.',
+    ? i18n.t('knowledge.restoreSubtitle')
+    : i18n.t('knowledge.editImmutableSubtitle'),
 )
 const submitLabel = computed(() =>
   selectedVersion.value && !selectedVersion.value.current
-    ? 'Restore as new version'
-    : 'Save version',
+    ? i18n.t('knowledge.restoreAsNewVersion')
+    : i18n.t('knowledge.saveVersion'),
 )
 
 const slug = computed(() => String(route.params.slug ?? ''))

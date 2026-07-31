@@ -252,16 +252,17 @@ export function v1AuthHook(db: Knex) {
 // ── Auth Routes ──────────────────────────────────────────────────
 
 export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
+  async function isSignupEnabled(): Promise<boolean> {
+    if (process.env.SIGNUP_ENABLED !== 'false') return true
+    const userCountRes = await db('users').count('id as count').first()
+    return Number((userCountRes as { count?: number | string } | undefined)?.count ?? 0) === 0
+  }
+
   // Public auth configuration
   app.get('/auth/config', async (request: FastifyRequest, reply: FastifyReply) => {
-    let signupEnabled = process.env.SIGNUP_ENABLED !== 'false'
-    if (!signupEnabled) {
-      const userCountRes = await db('users').count('id as count').first()
-      if (Number((userCountRes as any)?.count ?? 0) === 0) signupEnabled = true
-    }
-    const hideDashboard = process.env.HIDE_DASHBOARD === 'true' || process.env.HIDE_PORTAL === 'true'
-    const hidePortal = hideDashboard
-    return { signupEnabled, hideDashboard, hidePortal }
+    const signupEnabled = await isSignupEnabled()
+    const hideDashboard = process.env.HIDE_DASHBOARD === 'true'
+    return { signupEnabled, hideDashboard }
   })
 
   // Email + password login creates a browser session. API/MCP tokens are created explicitly below.
@@ -413,20 +414,15 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
     const body = request.body as { email?: string; password?: string; name?: string }
     if (!body.email || !body.password) return reply.badRequest('email and password are required')
 
-    let signupEnabled = process.env.SIGNUP_ENABLED !== 'false'
-    
-    // First user becomes owner; subsequent users become members
     const userCountRow = await db<UserRow>('users').count('id as count').first()
     const userCount = Number((userCountRow as any)?.count ?? 0)
-    
-    if (userCount === 0) {
-      signupEnabled = true
-    }
 
-    if (!signupEnabled) {
+    // Signup is disabled only when the env flag says so and at least one user exists.
+    if (process.env.SIGNUP_ENABLED === 'false' && userCount > 0) {
       return reply.badRequest('Signup is currently disabled.')
     }
 
+    // First user becomes owner; subsequent users become members.
     const email = String(body.email).trim().toLowerCase()
     const name = String(body.name ?? '').trim() || displayNameFromEmail(email)
 
@@ -615,12 +611,7 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
   app.get('/v1/me', async (request: FastifyRequest, reply: FastifyReply) => {
     const auth = await requireSignedInUser(request, reply)
     if (!auth) return
-    let signupEnabled = process.env.SIGNUP_ENABLED !== 'false'
-    if (!signupEnabled) {
-      const userCountRes = await db('users').count('id as count').first()
-      if (Number((userCountRes as any)?.count ?? 0) === 0) signupEnabled = true
-    }
-    return { ...auth.user, signup_enabled: signupEnabled }
+    return { ...auth.user, signup_enabled: await isSignupEnabled() }
   })
 
   return app

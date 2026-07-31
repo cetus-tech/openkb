@@ -23,7 +23,17 @@
             <div class="i-heroicons-outline-globe-alt text-base" />
           </div>
           <div v-show="!siderCollapsed" class="flex min-w-0 flex-1 flex-col">
-            <span class="truncate text-base font-semibold tracking-tight text-gray-900 dark:text-white">OpenKB</span>
+            <div class="flex min-w-0 items-center gap-2">
+              <span class="truncate text-base font-semibold tracking-tight text-gray-900 dark:text-white">OpenKB</span>
+              <n-tag
+                v-if="versionStore.version"
+                size="tiny"
+                round
+                :bordered="false"
+                class="shrink-0"
+                >v{{ versionStore.version }}</n-tag
+              >
+            </div>
             <span class="text-[11px] text-gray-500 dark:text-dark-400">Knowledge for agents</span>
           </div>
         </router-link>
@@ -92,12 +102,14 @@ import type { MenuOption } from 'naive-ui'
 import { NIcon } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import { useI18nStore } from '@/stores/i18n'
+import { useVersionStore } from '@/stores/version'
 import AppHeader from './AppHeader.vue'
 import AppFooter from './AppFooter.vue'
 
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
+const versionStore = useVersionStore()
 
 const isDesktop = ref(true)
 let mediaQuery: MediaQueryList | null = null
@@ -108,6 +120,7 @@ function syncViewport() {
 }
 
 onMounted(() => {
+  void versionStore.loadVersion()
   mediaQuery = window.matchMedia('(min-width: 1024px)')
   syncViewport()
   mediaQuery.addEventListener('change', syncViewport)

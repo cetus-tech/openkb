@@ -4,19 +4,19 @@
       <div class="min-w-0">
         <n-button quaternary size="small" class="mb-2 -ml-2" @click="$emit('cancel')">
           <template #icon><div class="i-tabler-arrow-left" /></template>
-          Back to review
+          {{ i18n.t('knowledge.backToReview') }}
         </n-button>
         <h1 class="m-0 truncate text-xl font-bold leading-tight text-gray-900 dark:text-white sm:text-2xl">
-          {{ heading }}
+          {{ headingText }}
         </h1>
-        <p v-if="subtitle" class="mt-1 mb-0 text-xs text-gray-500 dark:text-dark-400">
-          {{ subtitle }}
+        <p v-if="subtitleText" class="mt-1 mb-0 text-xs text-gray-500 dark:text-dark-400">
+          {{ subtitleText }}
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
-        <n-button @click="$emit('cancel')">Cancel</n-button>
+        <n-button @click="$emit('cancel')">{{ i18n.t('common.cancel') }}</n-button>
         <n-button type="primary" :loading="saving" @click="$emit('submit')">
-          {{ submitLabel }}
+          {{ submitLabelText }}
         </n-button>
       </div>
     </div>
@@ -132,9 +132,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import type { KnowledgeFormModel } from '@/utils/knowledgeForm'
 import { renderMarkdown } from '@/utils/markdown'
+import { useI18nStore } from '@/stores/i18n'
+
+const i18n = useI18nStore()
 
 const props = withDefaults(
   defineProps<{
@@ -153,12 +156,13 @@ const props = withDefaults(
     saving: false,
     slugDisabled: true,
     showChangeSummary: true,
-    submitLabel: 'Save version',
-    heading: 'Edit knowledge',
-    subtitle: 'Snapshots are immutable. Saving creates a new version.',
     hint: '',
   },
 )
+
+const headingText = computed(() => props.heading ?? i18n.t('knowledge.editKnowledge'))
+const subtitleText = computed(() => props.subtitle ?? i18n.t('knowledge.editDefaultSubtitle'))
+const submitLabelText = computed(() => props.submitLabel ?? i18n.t('knowledge.saveVersion'))
 
 const emit = defineEmits<{
   'update:model': [value: KnowledgeFormModel]
