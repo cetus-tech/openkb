@@ -10,7 +10,7 @@ Run OpenKB on a host with an HTTPS URL, for example:
 https://kb.example.com/mcp
 ```
 
-Keep the web portal and MCP endpoint behind HTTPS and use an OpenKB API token. Sign in to the portal, open **Settings → MCP tokens**, create a token, and copy its value (Settings can show it again later). Browser login sessions and MCP bearer tokens are separate.
+Keep the web dashboard and MCP endpoint behind HTTPS and use an OpenKB API token. Sign in to the dashboard, open **Settings → MCP tokens**, create a token, and copy its value (Settings can show it again later). Browser login sessions and MCP bearer tokens are separate.
 
 ## 2. Add the MCP server in ChatGPT
 
@@ -30,4 +30,4 @@ Do not select **stdio**. Stdio is for an MCP server launched as a local command;
 
 ## 3. Verify
 
-Ask ChatGPT to list the OpenKB knowledge types, then ask it to retrieve context for a project. To let ChatGPT record memories, ask it to use `openkb_remember`; the resulting proposal must be approved in the OpenKB portal.
+Ask ChatGPT to list the OpenKB knowledge types, then ask it to retrieve context for a project. To let ChatGPT record memories, ask it to use `openkb_remember`; the resulting proposal must be approved in the OpenKB dashboard.

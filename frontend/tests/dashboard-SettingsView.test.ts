@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { createPinia } from 'pinia'
 import naive, { NConfigProvider } from 'naive-ui'
-import SettingsView from '../src/views/portal/SettingsView.vue'
+import SettingsView from '../src/views/dashboard/SettingsView.vue'
 
 vi.mock('naive-ui', async () => {
   const actual = await vi.importActual('naive-ui')
@@ -26,7 +26,7 @@ globalThis.fetch = mockFetch
 const router = createRouter({
   history: createMemoryHistory('/dashboard/settings'),
   routes: [
-    { path: '/dashboard/settings', name: 'portal-settings', component: SettingsView },
+    { path: '/dashboard/settings', name: 'dashboard-settings', component: SettingsView },
     { path: '/auth/login', name: 'login', component: { template: '<div>Login</div>' } },
     { path: '/:pathMatch(.*)*', component: { template: '<div>Fallback</div>' } },
   ],

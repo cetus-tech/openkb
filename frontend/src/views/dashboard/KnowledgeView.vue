@@ -272,7 +272,7 @@ const columns = computed<DataTableColumns<Knowledge>>(() => [
 function rowProps(row: Knowledge) {
   return {
     style: 'cursor: pointer',
-    onClick: () => router.push({ name: 'portal-knowledge-detail', params: { slug: row.slug } }),
+    onClick: () => router.push({ name: 'dashboard-knowledge-detail', params: { slug: row.slug } }),
   }
 }
 
@@ -338,7 +338,7 @@ async function saveKnowledge() {
     message.success('Knowledge added')
     showEditor.value = false
     await fetchKnowledge()
-    router.push({ name: 'portal-knowledge-detail', params: { slug: form.slug.trim() } })
+    router.push({ name: 'dashboard-knowledge-detail', params: { slug: form.slug.trim() } })
   } catch (err) {
     message.error(err instanceof Error ? err.message : 'Failed to save knowledge')
   } finally {

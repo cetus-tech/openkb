@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { createPinia } from 'pinia'
 import naive, { NConfigProvider, useMessage } from 'naive-ui'
-import AgentsView from '../src/views/portal/AgentsView.vue'
+import AgentsView from '../src/views/dashboard/AgentsView.vue'
 
 vi.mock('naive-ui', async () => {
   const actual = await vi.importActual('naive-ui')
@@ -32,7 +32,7 @@ globalThis.fetch = mockFetch
 const router = createRouter({
   history: createMemoryHistory('/dashboard/agents'),
   routes: [
-    { path: '/dashboard/agents', name: 'portal-agents', component: AgentsView },
+    { path: '/dashboard/agents', name: 'dashboard-agents', component: AgentsView },
     { path: '/:pathMatch(.*)*', component: { template: '<div>Fallback</div>' } },
   ],
 })

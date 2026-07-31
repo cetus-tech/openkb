@@ -144,7 +144,7 @@ function setStatusFilter(filter: string) {
   statusFilter.value = filter
   page.value = 1
   router.replace({
-    name: 'portal-proposals',
+    name: 'dashboard-proposals',
     query: {
       ...(filter === 'open' ? {} : { status: filter }),
       ...(pageSize.value !== 20 ? { pageSize: String(pageSize.value) } : {}),
@@ -274,7 +274,7 @@ function confirmDeleteProposal(proposal: Proposal) {
 function rowProps(row: Proposal) {
   return {
     style: 'cursor: pointer',
-    onClick: () => router.push({ name: 'portal-proposal-detail', params: { id: String(row.id) } }),
+    onClick: () => router.push({ name: 'dashboard-proposal-detail', params: { id: String(row.id) } }),
   }
 }
 

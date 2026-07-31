@@ -8,7 +8,7 @@ import router from '../src/router'
 globalThis.fetch = vi.fn().mockResolvedValue({
   ok: true,
   status: 200,
-  json: async () => ({ hidePortal: false, signupEnabled: false }),
+  json: async () => ({ hideDashboard: false, hidePortal: false, signupEnabled: false }),
 })
 
 describe('App providers', () => {

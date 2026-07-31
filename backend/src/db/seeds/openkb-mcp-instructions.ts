@@ -30,7 +30,7 @@ Call \`openkb_whoami\` when you need to confirm permission level or which tools 
 
 ## When durable knowledge should change
 
-1. **Default:** \`openkb_remember\` — creates a reviewable proposal. It does **not** change active knowledge until a human approves it in the portal.
+1. **Default:** \`openkb_remember\` — creates a reviewable proposal. It does **not** change active knowledge until a human approves it in the dashboard.
 2. **Direct save:** \`openkb_upsert_knowledge\` only when this agent has **write** permission and an intentional active update is required.
 3. Do not leave durable decisions only in chat or in local instruction files.
 
@@ -39,7 +39,7 @@ Knowledge attribution is the **human who owns the MCP bearer token**, not the ag
 ## Retrieval
 
 - Only **active** knowledge is returned by search, context, list, and get tools
-- **Inactive** knowledge is hidden from agents; manage it in the portal
+- **Inactive** knowledge is hidden from agents; manage it in the dashboard
 - \`openkb_search\` — keyword search; omit \`query\` to list active items
 - \`openkb_get_knowledge\` — full item by stable slug
 - \`openkb_list_versions\` — version history for one slug

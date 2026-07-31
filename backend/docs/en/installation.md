@@ -13,7 +13,7 @@ docker compose up -d
 curl http://localhost:6800/health
 ```
 
-Open the web portal at `http://localhost:6800` and create the first account (display name + email + password). The first account is the owner. Sign-in uses a browser session; create an MCP/API token explicitly from **Settings → MCP tokens**. Migrations create the schema and seed default MCP instructions (`openkb-mcp-instructions`).
+Open the web dashboard at `http://localhost:6800` and create the first account (display name + email + password). The first account is the owner. Sign-in uses a browser session; create an MCP/API token explicitly from **Settings → MCP tokens**. Migrations create the schema and seed default MCP instructions (`openkb-mcp-instructions`).
 
 For local development with Compose overrides, `docker compose -f docker-compose.yml -f docker-compose.dev.yml up` also starts a SQLite web UI on port **6801**.
 

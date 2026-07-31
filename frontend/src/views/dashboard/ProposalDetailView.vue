@@ -6,7 +6,7 @@
                     quaternary
                     size="small"
                     class="-ml-2 mb-2"
-                    @click="router.push({ name: 'portal-proposals' })">
+                    @click="router.push({ name: 'dashboard-proposals' })">
                     <template #icon>
                         <div class="i-tabler-arrow-left" />
                     </template>
@@ -582,11 +582,11 @@ function statusType(
 
 function openKnowledge() {
     if (!proposal.value?.slug) {
-        router.push({ name: 'portal-knowledge' });
+        router.push({ name: 'dashboard-knowledge' });
         return;
     }
     router.push({
-        name: 'portal-knowledge-detail',
+        name: 'dashboard-knowledge-detail',
         params: { slug: proposal.value.slug },
     });
 }

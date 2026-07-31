@@ -13,7 +13,7 @@ const router = createRouter({
   history: createMemoryHistory('/auth/register'),
   routes: [
     { path: '/auth/register', name: 'register', component: RegisterView },
-    { path: '/dashboard', name: 'portal', component: { template: '<div>Dashboard</div>' } },
+    { path: '/dashboard', name: 'dashboard', component: { template: '<div>Dashboard</div>' } },
     { path: '/', name: 'home', component: { template: '<div>Home</div>' } },
     { path: '/:pathMatch(.*)*', component: { template: '<div>Fallback</div>' } },
   ],

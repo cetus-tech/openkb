@@ -1,6 +1,6 @@
 # Quick Start
 
-OpenKB is a brain for AI agents. The agent-facing service is MCP; the web portal is where people add knowledge and review changes.
+OpenKB is a brain for AI agents. The agent-facing service is MCP; the web dashboard is where people add knowledge and review changes.
 
 ### MCP in plain language
 
@@ -19,11 +19,11 @@ curl http://localhost:6800/health
 
 The health response should be `{"ok":true}`. Open `http://localhost:6800` in a browser.
 
-This starts the web portal and MCP endpoint in one container. Keep the `data/openkb.db` (or `./data/openkb.db` in source) so the SQLite database survives container restarts. For alternate deployment options, see the [full Installation guide](../installation.md).
+This starts the web dashboard and MCP endpoint in one container. Keep the `data/openkb.db` (or `./data/openkb.db` in source) so the SQLite database survives container restarts. For alternate deployment options, see the [full Installation guide](../installation.md).
 
 ## 2. Create the owner account
 
-Choose **Create account** in the web portal. Provide a display **name**, email, and password. The first account becomes the owner. Registration and later sign-ins create a browser session only; they do not create or rotate MCP tokens.
+Choose **Create account** in the web dashboard. Provide a display **name**, email, and password. The first account becomes the owner. Registration and later sign-ins create a browser session only; they do not create or rotate MCP tokens.
 
 After sign-in, the dashboard **Getting started** checklist walks through the remaining setup: create a token, add knowledge, connect an agent, and review memories. Fresh installs also seed global active knowledge `openkb-mcp-instructions` (agent workflow rules).
 
@@ -53,7 +53,7 @@ Do not commit this value or paste it into an agent prompt.
 
 ## 3. Add initial knowledge
 
-Sign in to the portal and open **Knowledge**. Browse the seeded MCP instructions, then add your own global rule, skill, specification, workflow, or reference. Leave **Project slug** empty for knowledge that applies everywhere. Set it for project-specific knowledge.
+Sign in to the dashboard and open **Knowledge**. Browse the seeded MCP instructions, then add your own global rule, skill, specification, workflow, or reference. Leave **Project slug** empty for knowledge that applies everywhere. Set it for project-specific knowledge.
 
 Optional scope fields narrow retrieval further:
 
@@ -116,7 +116,7 @@ bearer_token_env_var = "OPENKB_TOKEN"
 http_headers = { "X-OpenKB-Agent" = "codex" }
 ```
 
-Start a new Codex session and call `openkb_list_types`. The first authenticated request automatically creates the `codex` identity with `propose` permission. Check **Agents** in the portal and change it to `write` only when it is trusted to update active knowledge. Use `admin` only for an agent that must manage other agents.
+Start a new Codex session and call `openkb_list_types`. The first authenticated request automatically creates the `codex` identity with `propose` permission. Check **Agents** in the dashboard and change it to `write` only when it is trusted to update active knowledge. Use `admin` only for an agent that must manage other agents.
 
 Use the same identity on every session. Changing the name creates a second agent record with separate permission and activity history.
 
@@ -134,4 +134,4 @@ The normal flow is:
 
 Agents do not need to know a fixed list of memories in advance. They can propose any durable Markdown knowledge that future sessions should retain. A trusted agent with `write` permission can update active knowledge directly, but use that permission only when you want to skip human review.
 
-Manage portal accounts under **Users** (owners create members, set display names, and delete accounts).
+Manage dashboard accounts under **Users** (owners create members, set display names, and delete accounts).

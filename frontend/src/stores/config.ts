@@ -3,7 +3,8 @@ import { ref } from 'vue'
 
 export const useConfigStore = defineStore('config', () => {
   // From environment variables (docker-compose.yaml)
-  const hidePortal = ref(false)
+  const hideDashboard = ref(false)
+  const hidePortal = hideDashboard
   const signupEnabled = ref(false)
   const loaded = ref(false)
 
@@ -13,7 +14,7 @@ export const useConfigStore = defineStore('config', () => {
       const res = await fetch('/auth/config')
       if (res.ok) {
         const data = await res.json()
-        hidePortal.value = data.hidePortal ?? false
+        hideDashboard.value = data.hideDashboard ?? data.hidePortal ?? false
         signupEnabled.value = data.signupEnabled ?? false
         loaded.value = true
       }
@@ -22,5 +23,5 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
-  return { hidePortal, signupEnabled, loadConfig, loaded }
+  return { hideDashboard, hidePortal, signupEnabled, loadConfig, loaded }
 })

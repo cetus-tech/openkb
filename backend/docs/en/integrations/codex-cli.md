@@ -4,7 +4,7 @@ This guide connects Codex CLI to an OpenKB server over Streamable HTTP.
 
 ## 1. Create an MCP token
 
-Start OpenKB and create the first account in the web portal. Sign-in creates the browser session used by the portal. Then create an MCP token from **Settings → MCP tokens**. Or use the terminal flow below, which uses a temporary cookie session to create a named bearer token:
+Start OpenKB and create the first account in the web dashboard. Sign-in creates the browser session used by the dashboard. Then create an MCP token from **Settings → MCP tokens**. Or use the terminal flow below, which uses a temporary cookie session to create a named bearer token:
 
 ```bash
 curl -c openkb.cookies -s http://localhost:6800/auth/login \
@@ -50,7 +50,7 @@ codex mcp list
 
 Start a new Codex session and ask it to call `openkb_list_types`. Then ask it to call `openkb_get_context` before a real task. A memory created with `openkb_remember` appears in OpenKB **Proposals**.
 
-The first authenticated request creates `codex` in OpenKB **Agents** with `propose` permission. Open the portal's **Agents** page and change that identity to `write` if this Codex instance is trusted to save active knowledge directly. Do not create a second name for every session; use the same name for the same client instance.
+The first authenticated request creates `codex` in OpenKB **Agents** with `propose` permission. Open the dashboard's **Agents** page and change that identity to `write` if this Codex instance is trusted to save active knowledge directly. Do not create a second name for every session; use the same name for the same client instance.
 
 ## 4. Tell Codex to use OpenKB
 

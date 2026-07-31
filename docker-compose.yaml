@@ -28,8 +28,8 @@ services:
             # Logging level for the backend (e.g. debug, info, warn, error)
             - LOG_LEVEL=info
 
-            # Set to 'true' to disable portal, effectively running OpenKB in a 'docs only' mode.
-            # - HIDE_PORTAL=true
+            # Set to 'true' to disable dashboard, effectively running OpenKB in a 'docs only' mode.
+            # - HIDE_DASHBOARD=true
 
             # Set to 'true' to allow users to create new accounts on the login page.
             # The first registered account automatically becomes the owner/admin.

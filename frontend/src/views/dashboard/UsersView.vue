@@ -32,7 +32,7 @@
     <n-spin v-if="loading && !users.length" size="large" class="flex justify-center py-20" />
 
     <n-card v-else size="small" :bordered="true">
-      <n-data-table size="small" :bordered="false" :single-line="false" :columns="columns" :data="users" :row-key="(r: PortalUser) => r.id" />
+      <n-data-table size="small" :bordered="false" :single-line="false" :columns="columns" :data="users" :row-key="(r: DashboardUser) => r.id" />
     </n-card>
 
     <n-modal v-model:show="showCreate" preset="card" :title="i18n.t('users.addUser')" class="w-[min(440px,calc(100vw-2rem))]">
@@ -94,7 +94,7 @@ import { useDialog, useMessage, NButton, NSelect, NTag, type DataTableColumns, t
 import { apiFetch, relativeTime } from '@/utils/api'
 import { useI18nStore } from '@/stores/i18n'
 
-interface PortalUser {
+interface DashboardUser {
   id: number
   email: string
   name: string
@@ -108,14 +108,14 @@ const dialog = useDialog()
 const i18n = useI18nStore()
 const loading = ref(true)
 const error = ref('')
-const users = ref<PortalUser[]>([])
+const users = ref<DashboardUser[]>([])
 const currentUserId = ref<number | null>(null)
 const currentUserRole = ref('')
 const showCreate = ref(false)
 const creating = ref(false)
 const showPassword = ref(false)
 const savingPassword = ref(false)
-const passwordTarget = ref<PortalUser | null>(null)
+const passwordTarget = ref<DashboardUser | null>(null)
 
 const createForm = reactive({
   name: '',
@@ -126,7 +126,7 @@ const createForm = reactive({
 const passwordForm = reactive({ password: '' })
 const showEditName = ref(false)
 const savingName = ref(false)
-const nameTarget = ref<PortalUser | null>(null)
+const nameTarget = ref<DashboardUser | null>(null)
 const nameForm = reactive({ name: '' })
 
 const roleOptions = computed<SelectOption[]>(() => [
@@ -147,8 +147,8 @@ function roleType(role: string): 'default' | 'info' | 'success' | 'warning' | 'e
   return 'info'
 }
 
-const columns = computed<DataTableColumns<PortalUser>>(() => {
-  const cols: DataTableColumns<PortalUser> = [
+const columns = computed<DataTableColumns<DashboardUser>>(() => {
+  const cols: DataTableColumns<DashboardUser> = [
     {
       title: i18n.t('users.displayName'),
       key: 'name',
@@ -252,13 +252,13 @@ function openCreate() {
   showCreate.value = true
 }
 
-function openEditName(user: PortalUser) {
+function openEditName(user: DashboardUser) {
   nameTarget.value = user
   nameForm.name = user.name || ''
   showEditName.value = true
 }
 
-function openPassword(user: PortalUser) {
+function openPassword(user: DashboardUser) {
   passwordTarget.value = user
   passwordForm.password = ''
   showPassword.value = true
@@ -269,7 +269,7 @@ async function fetchUsers() {
   try {
     const [session, data] = await Promise.all([
       apiFetch<{ user: { id: number; role: string } }>('/auth/session'),
-      apiFetch<{ users: PortalUser[]; currentUserId: number }>('/v1/users'),
+      apiFetch<{ users: DashboardUser[]; currentUserId: number }>('/v1/users'),
     ])
     currentUserId.value = session.user.id
     currentUserRole.value = session.user.role
@@ -330,7 +330,7 @@ async function saveName() {
   }
 }
 
-async function updateRole(user: PortalUser, role: string) {
+async function updateRole(user: DashboardUser, role: string) {
   if (role === user.role) return
   const previous = user.role
   user.role = role
@@ -370,7 +370,7 @@ async function savePassword() {
   }
 }
 
-function deleteUser(user: PortalUser) {
+function deleteUser(user: DashboardUser) {
   dialog.warning({
     title: i18n.t('users.deleteUserTitle'),
     content: i18n.t('users.deleteUserConfirm').replace('{email}', user.email),

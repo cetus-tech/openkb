@@ -44,7 +44,7 @@ interface TokenRow {
   name: string
   user_id?: number | null
   token_prefix?: string | null
-  /** Full bearer secret; used for auth lookup and portal copy. */
+  /** Full bearer secret; used for auth lookup and dashboard copy. */
   token_value?: string | null
   created_at: string
   last_used_at?: string | null
@@ -224,8 +224,9 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
       const userCountRes = await db('users').count('id as count').first()
       if (Number((userCountRes as any)?.count ?? 0) === 0) signupEnabled = true
     }
-    const hidePortal = process.env.HIDE_PORTAL === 'true'
-    return { signupEnabled, hidePortal }
+    const hideDashboard = process.env.HIDE_DASHBOARD === 'true' || process.env.HIDE_PORTAL === 'true'
+    const hidePortal = hideDashboard
+    return { signupEnabled, hideDashboard, hidePortal }
   })
 
   // Email + password login creates a browser session. API/MCP tokens are created explicitly below.
@@ -392,7 +393,7 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
     })
   })
 
-  // ── User management (portal) ─────────────────────────────────────
+  // ── User management (dashboard) ──────────────────────────────────
 
   async function requireSignedInUser(request: FastifyRequest, reply: FastifyReply) {
     const context = await lookupAuthContext(db, request)
@@ -430,7 +431,7 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
     }
   }
 
-  // List portal users (any signed-in user).
+  // List dashboard users (any signed-in user).
   app.get('/v1/users', async (request: FastifyRequest, reply: FastifyReply) => {
     const auth = await requireSignedInUser(request, reply)
     if (!auth) return

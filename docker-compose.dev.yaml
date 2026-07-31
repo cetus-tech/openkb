@@ -10,6 +10,11 @@ services:
     # SQLite web UI: http://localhost:6801 (same ./data/openkb.db as the app)
     openkb:
         image: openkb
+        build:
+            context: .
+            args:
+                - http_proxy=${HTTP_PROXY:-${http_proxy:-}}
+                - https_proxy=${HTTPS_PROXY:-${https_proxy:-}}
         container_name: openkb-dev
         command: ['npx', 'tsx', 'watch', 'backend/src/server.ts']
         ports:
@@ -30,7 +35,7 @@ services:
             - OPENKB_HOST=0.0.0.0
             - OPENKB_PORT=6800
             - LOG_LEVEL=debug
-            #- HIDE_PORTAL=true
+            #- HIDE_DASHBOARD=true
             - SIGNUP_ENABLED=true
 
     # Browser UI for the shared SQLite file (dev only — can lock/write the DB).

@@ -45,7 +45,7 @@ Agents propose new memories when they learn something durable
 | **Scope**     | Metadata that says when a knowledge item is relevant: optional project and path patterns.                       |
 | **Proposal**  | A suggested knowledge change that can be reviewed before becoming canonical (`open` / `approved` / `rejected`). |
 | **Agent**     | A registered client identity (name + permission). Knowledge attribution uses the human who owns the MCP token.  |
-| **User**      | A portal account (`name`, `email`, `role`) that can own MCP tokens and review proposals.                        |
+| **User**      | A dashboard account (`name`, `email`, `role`) that can own MCP tokens and review proposals.                        |
 
 ## Knowledge is the canonical unit
 
@@ -57,7 +57,7 @@ Every OpenKB knowledge item has:
 | `title`     | Human-readable title.                                                                   |
 | `summary`   | Short explanation shown in lists and retrieval results.                                 |
 | `type`      | Category of knowledge.                                                                  |
-| `status`    | `active` (retrieved by agents) or `inactive` (hidden from agents; still in the portal). |
+| `status`    | `active` (retrieved by agents) or `inactive` (hidden from agents; still in the dashboard). |
 | `content`   | Full Markdown content.                                                                  |
 | `scope`     | Optional project and path matching hints.                                               |
 | `version`   | Current version number (integer).                                                       |

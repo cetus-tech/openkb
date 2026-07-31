@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { createPinia } from 'pinia'
 import naive, { NConfigProvider } from 'naive-ui'
-import DashboardView from '../src/views/portal/DashboardView.vue'
+import DashboardView from '../src/views/dashboard/DashboardView.vue'
 
 const mockFetch = vi.fn()
 globalThis.fetch = mockFetch
@@ -12,8 +12,8 @@ const router = createRouter({
   history: createMemoryHistory('/dashboard'),
   routes: [
     { path: '/dashboard', name: 'dashboard', component: DashboardView },
-    { path: '/dashboard/knowledge', name: 'portal-knowledge', component: { template: '<div>Knowledge</div>' } },
-    { path: '/dashboard/knowledge/:slug', name: 'portal-knowledge-detail', component: { template: '<div>Detail</div>' } },
+    { path: '/dashboard/knowledge', name: 'dashboard-knowledge', component: { template: '<div>Knowledge</div>' } },
+    { path: '/dashboard/knowledge/:slug', name: 'dashboard-knowledge-detail', component: { template: '<div>Detail</div>' } },
     { path: '/auth/login', name: 'login', component: { template: '<div>Login</div>' } },
     { path: '/:pathMatch(.*)*', component: { template: '<div>Fallback</div>' } },
   ],

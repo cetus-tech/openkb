@@ -56,4 +56,4 @@ Restart your Antigravity agent session after configuration to ensure the tools a
 
 ## 4. Verify
 
-Ask the agent to call `openkb_get_context` with the current project slug and file path. Ask it to call `openkb_remember` after a meaningful discovery. Review the proposal in the OpenKB portal before it becomes active knowledge.
+Ask the agent to call `openkb_get_context` with the current project slug and file path. Ask it to call `openkb_remember` after a meaningful discovery. Review the proposal in the OpenKB dashboard before it becomes active knowledge.

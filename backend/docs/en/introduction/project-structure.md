@@ -21,7 +21,7 @@ backend/
 │
 ├── frontend/            # Vue 3 SPA
 │   └── src/
-│       ├── views/       # Home, Docs, portal pages
+│       ├── views/       # Home, Docs, dashboard pages
 │       ├── components/  # Layout, knowledge Markdown pane, forms
 │       ├── stores/      # Pinia state
 │       └── router/      # Vue Router config

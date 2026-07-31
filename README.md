@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
-OpenKB Server is a self-hosted SQLite-backed knowledge service for AI agents. Agents connect through the built-in MCP endpoint; people use the web portal to add knowledge and review proposed memories.
+OpenKB Server is a self-hosted SQLite-backed knowledge service for AI agents. Agents connect through the built-in MCP endpoint; people use the web dashboard to add knowledge and review proposed memories.
 
 ## Quick start
 
@@ -46,7 +46,7 @@ docker compose up -d
 curl http://localhost:6800/health
 ```
 
-The web portal and API are served on `http://localhost:6800`. The SQLite database is persisted in `./data/openkb.db`.
+The web dashboard and API are served on `http://localhost:6800`. The SQLite database is persisted in `./data/openkb.db`.
 
 ## MCP endpoint
 
@@ -68,6 +68,6 @@ The endpoint accepts Streamable HTTP JSON-RPC requests. It requires a bearer tok
 1. Call `openkb_get_context` or `openkb_search` before working.
 2. Use `openkb_get_knowledge` when a complete knowledge item is needed.
 3. Call `openkb_remember` when a durable discovery should survive the session.
-4. Review and approve proposals in the portal.
+4. Review and approve proposals in the dashboard.
 
 New authenticated agents can propose knowledge. A user can promote a trusted agent to direct write access.

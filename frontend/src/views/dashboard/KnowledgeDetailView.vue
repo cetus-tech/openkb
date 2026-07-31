@@ -20,7 +20,7 @@
   <div v-else class="flex h-[calc(100vh-8rem)] flex-col gap-4">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="min-w-0">
-        <n-button quaternary size="small" class="mb-2 -ml-2" @click="router.push({ name: 'portal-knowledge' })">
+        <n-button quaternary size="small" class="mb-2 -ml-2" @click="router.push({ name: 'dashboard-knowledge' })">
           <template #icon><div class="i-tabler-arrow-left" /></template>
           {{ i18n.t('nav.knowledge') }}
         </n-button>
@@ -280,7 +280,7 @@ function deleteKnowledge() {
       try {
         await apiFetch(`/v1/knowledge/${encodeURIComponent(itemSlug)}`, { method: 'DELETE' })
         message.success('Knowledge deleted')
-        router.push({ name: 'portal-knowledge' })
+        router.push({ name: 'dashboard-knowledge' })
       } catch (err) {
         message.error(err instanceof Error ? err.message : 'Failed to delete knowledge')
         throw err

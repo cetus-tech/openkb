@@ -1,6 +1,6 @@
 # MCP Integration
 
-OpenKB exposes one agent service: a Streamable HTTP MCP endpoint at `/mcp`. It runs in the same container as the web portal and reads/writes the same SQLite database.
+OpenKB exposes one agent service: a Streamable HTTP MCP endpoint at `/mcp`. It runs in the same container as the web dashboard and reads/writes the same SQLite database.
 
 ## MCP in plain language
 
@@ -44,7 +44,7 @@ The authentication endpoints have separate responsibilities:
 | `PATCH` | `/auth/tokens/:id` | Rename a token |
 | `DELETE` | `/auth/tokens/:id` | Explicitly revoke one bearer token |
 | `POST` | `/auth/logout` | End the browser session without revoking bearer tokens |
-| `GET` | `/v1/users` | List portal users |
+| `GET` | `/v1/users` | List dashboard users |
 | `POST` | `/v1/users` | Create a user (owner only) |
 | `PATCH` | `/v1/users/:id` | Update name, role, or password |
 | `DELETE` | `/v1/users/:id` | Delete a user (owner only) |
@@ -115,7 +115,7 @@ Tools are **permission-gated**. Clients only see tools the resolved agent may ca
 |---|---|
 | `openkb_list_agents` | List registered agent identities and permissions |
 
-Approving or rejecting proposals remains a **portal** action for humans (or the REST API). Agents do not get an MCP approve tool by design.
+Approving or rejecting proposals remains a **dashboard** action for humans (or the REST API). Agents do not get an MCP approve tool by design.
 
 ### Why not more tools?
 
@@ -124,16 +124,16 @@ MCP clients load every advertised tool schema into the model context. OpenKB the
 - Merges list + search into `openkb_search` (omit `query` to list).
 - Uses a single propose path: `openkb_remember` (new or update by slug).
 - Exposes write/admin tools only when the agent has those permissions.
-- Leaves human workflow (approve proposal, manage tokens) in the web portal.
+- Leaves human workflow (approve proposal, manage tokens) in the web dashboard.
 
 ## What happens to a change
 
 There are two safe ways to change knowledge:
 
-- A human saves knowledge from the web portal. It becomes active immediately and starts a new version.
+- A human saves knowledge from the web dashboard. It becomes active immediately and starts a new version.
 - An agent with `propose` permission calls `openkb_remember`. OpenKB creates an open proposal and leaves the current active knowledge unchanged. A human can approve it to create the next version or reject it without changing canonical knowledge.
 
-Only active knowledge is returned by normal MCP search, context, list, and single-item retrieval. Inactive items remain available to humans in the portal for management and history, but they do not silently influence an agent.
+Only active knowledge is returned by normal MCP search, context, list, and single-item retrieval. Inactive items remain available to humans in the dashboard for management and history, but they do not silently influence an agent.
 
 An agent with `write` permission can call `openkb_upsert_knowledge` to save active knowledge directly. Use this only for an explicitly trusted identity; proposal mode is the safer default.
 
@@ -192,4 +192,4 @@ Remember a new discovery:
 }
 ```
 
-The proposal is visible in the web portal. Approval creates or updates the canonical knowledge item and increments its version.
+The proposal is visible in the web dashboard. Approval creates or updates the canonical knowledge item and increments its version.

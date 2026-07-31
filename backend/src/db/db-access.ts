@@ -728,7 +728,7 @@ export async function registerOrUpdateAgent(db: Knex, input: RegisterAgentInput)
   const timestamp = now()
 
   // Agent identity is name-only (client-asserted). Knowledge attribution uses token owner.
-  // last_token_id records which bearer was last used (for portal display).
+  // last_token_id records which bearer was last used (for dashboard display).
   const existing = await db<AgentRow>('agents')
     .where({ name: input.name })
     .first()

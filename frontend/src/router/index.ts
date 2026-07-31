@@ -7,14 +7,14 @@ import DocsView from '@/views/DocsView.vue';
 import LoginView from '@/views/LoginView.vue';
 import RegisterView from '@/views/RegisterView.vue';
 import NotFoundView from '@/views/NotFoundView.vue';
-import DashboardView from '@/views/portal/DashboardView.vue';
-import ProposalsView from '@/views/portal/ProposalsView.vue';
-import ProposalDetailView from '@/views/portal/ProposalDetailView.vue';
-import SettingsView from '@/views/portal/SettingsView.vue';
-import UsersView from '@/views/portal/UsersView.vue';
-import AgentsView from '@/views/portal/AgentsView.vue';
-import KnowledgeView from '@/views/portal/KnowledgeView.vue';
-import KnowledgeDetailView from '@/views/portal/KnowledgeDetailView.vue';
+import DashboardView from '@/views/dashboard/DashboardView.vue';
+import ProposalsView from '@/views/dashboard/ProposalsView.vue';
+import ProposalDetailView from '@/views/dashboard/ProposalDetailView.vue';
+import SettingsView from '@/views/dashboard/SettingsView.vue';
+import UsersView from '@/views/dashboard/UsersView.vue';
+import AgentsView from '@/views/dashboard/AgentsView.vue';
+import KnowledgeView from '@/views/dashboard/KnowledgeView.vue';
+import KnowledgeDetailView from '@/views/dashboard/KnowledgeDetailView.vue';
 import { useConfigStore } from '@/stores/config';
 
 function authGuard(to: any, from: any, next: (to?: any) => void) {
@@ -87,7 +87,7 @@ const router = createRouter({
                 },
                 {
                     path: 'knowledge',
-                    name: 'portal-knowledge',
+                    name: 'dashboard-knowledge',
                     component: KnowledgeView,
                     meta: {
                         title: 'Knowledge',
@@ -96,7 +96,7 @@ const router = createRouter({
                 },
                 {
                     path: 'knowledge/:slug',
-                    name: 'portal-knowledge-detail',
+                    name: 'dashboard-knowledge-detail',
                     component: KnowledgeDetailView,
                     meta: {
                         title: 'Knowledge detail',
@@ -105,12 +105,12 @@ const router = createRouter({
                 },
                 {
                     path: 'search',
-                    redirect: { name: 'portal-knowledge' },
+                    redirect: { name: 'dashboard-knowledge' },
                 },
 
                 {
                     path: 'proposals',
-                    name: 'portal-proposals',
+                    name: 'dashboard-proposals',
                     component: ProposalsView,
                     meta: {
                         title: 'Proposals',
@@ -119,25 +119,25 @@ const router = createRouter({
                 },
                 {
                     path: 'proposals/:id',
-                    name: 'portal-proposal-detail',
+                    name: 'dashboard-proposal-detail',
                     component: ProposalDetailView,
                     meta: { title: 'Proposal Detail' },
                 },
                 {
                     path: 'agents',
-                    name: 'portal-agents',
+                    name: 'dashboard-agents',
                     component: AgentsView,
                     meta: { title: 'Agents', description: 'Agent identities' },
                 },
                 {
                     path: 'users',
-                    name: 'portal-users',
+                    name: 'dashboard-users',
                     component: UsersView,
                     meta: { title: 'Users', description: 'User accounts' },
                 },
                 {
                     path: 'settings',
-                    name: 'portal-settings',
+                    name: 'dashboard-settings',
                     component: SettingsView,
                     meta: {
                         title: 'Settings',
@@ -157,7 +157,7 @@ router.beforeEach(async (to, from, next) => {
     const config = useConfigStore();
     await config.loadConfig();
 
-    if (config.hidePortal) {
+    if (config.hideDashboard) {
         if (to.path.startsWith('/dashboard') || to.path.startsWith('/auth')) {
             return next({ name: 'not-found' });
         }

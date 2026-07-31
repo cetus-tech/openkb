@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { createPinia } from 'pinia'
 import naive, { NConfigProvider } from 'naive-ui'
-import ProposalDetailView from '../src/views/portal/ProposalDetailView.vue'
+import ProposalDetailView from '../src/views/dashboard/ProposalDetailView.vue'
 
 vi.mock('naive-ui', async () => {
   const actual = await vi.importActual('naive-ui')
@@ -32,9 +32,9 @@ globalThis.fetch = mockFetch
 const router = createRouter({
   history: createMemoryHistory('/dashboard/proposals/1'),
   routes: [
-    { path: '/dashboard/proposals', name: 'portal-proposals', component: { template: '<div>Proposals</div>' } },
-    { path: '/dashboard/proposals/:id', name: 'portal-proposal-detail', component: ProposalDetailView },
-    { path: '/dashboard/knowledge', name: 'portal-knowledge', component: { template: '<div>Knowledge</div>' } },
+    { path: '/dashboard/proposals', name: 'dashboard-proposals', component: { template: '<div>Proposals</div>' } },
+    { path: '/dashboard/proposals/:id', name: 'dashboard-proposal-detail', component: ProposalDetailView },
+    { path: '/dashboard/knowledge', name: 'dashboard-knowledge', component: { template: '<div>Knowledge</div>' } },
     { path: '/:pathMatch(.*)*', component: { template: '<div>Fallback</div>' } },
   ],
 })

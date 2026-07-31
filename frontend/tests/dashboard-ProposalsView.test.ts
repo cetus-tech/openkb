@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import { createPinia } from 'pinia';
 import naive, { NConfigProvider } from 'naive-ui';
-import ProposalsView from '../src/views/portal/ProposalsView.vue';
+import ProposalsView from '../src/views/dashboard/ProposalsView.vue';
 
 vi.mock('naive-ui', async () => {
     const actual = await vi.importActual('naive-ui');
@@ -25,22 +25,22 @@ const router = createRouter({
     routes: [
         {
             path: '/dashboard/proposals',
-            name: 'portal-proposals',
+            name: 'dashboard-proposals',
             component: ProposalsView,
         },
         {
             path: '/dashboard/proposals/:id',
-            name: 'portal-proposal-detail',
+            name: 'dashboard-proposal-detail',
             component: { template: '<div></div>' } as any,
         },
         {
             path: '/dashboard/knowledge',
-            name: 'portal-knowledge',
+            name: 'dashboard-knowledge',
             component: { template: '<div></div>' } as any,
         },
         {
             path: '/dashboard/agents',
-            name: 'portal-agents',
+            name: 'dashboard-agents',
             component: { template: '<div></div>' } as any,
         },
         {

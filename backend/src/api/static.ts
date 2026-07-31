@@ -23,7 +23,8 @@ export function serveStatic(app: FastifyInstance, publicDir: string) {
     const url = request.url.split('?')[0]
     if (isBackendRoute(url)) return reply.callNotFound()
 
-    if (process.env.HIDE_PORTAL === 'true' && url.startsWith('/portal')) {
+    const hideDashboard = process.env.HIDE_DASHBOARD === 'true' || process.env.HIDE_PORTAL === 'true'
+    if (hideDashboard && (url.startsWith('/dashboard') || url.startsWith('/portal'))) {
       return reply.redirect('/')
     }
 

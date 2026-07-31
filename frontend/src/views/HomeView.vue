@@ -5,7 +5,7 @@
             <!-- Dashboard button top right -->
             <div
                 class="absolute right-0 top-0"
-                v-if="!config.hidePortal">
+                v-if="!config.hideDashboard">
                 <router-link to="/dashboard">
                     <n-button
                         type="primary"

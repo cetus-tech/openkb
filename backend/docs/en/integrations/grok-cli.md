@@ -4,7 +4,7 @@ This guide connects the Grok CLI (xAI Grok Build TUI) to an OpenKB server over S
 
 ## 1. Create an MCP token
 
-Start OpenKB and create the first account in the web portal. Sign-in creates the browser session used by the portal. Then create an MCP token from **Settings → MCP tokens**. Or use the terminal flow below, which uses a temporary cookie session to create a named bearer token:
+Start OpenKB and create the first account in the web dashboard. Sign-in creates the browser session used by the dashboard. Then create an MCP token from **Settings → MCP tokens**. Or use the terminal flow below, which uses a temporary cookie session to create a named bearer token:
 
 ```bash
 curl -c openkb.cookies -s http://localhost:6800/auth/login \
@@ -60,7 +60,7 @@ grok mcp doctor openkb
 
 Ask Grok to call `openkb_list_types`. Then ask it to call `openkb_get_context` before a real task. A memory created with `openkb_remember` appears in OpenKB **Proposals**.
 
-The first authenticated request creates `grok` in OpenKB **Agents** with `propose` permission. Open the portal's **Agents** page and change that identity to `write` if this Grok instance is trusted to save active knowledge directly. Do not create a second name for every session; use the same name for the same client instance.
+The first authenticated request creates `grok` in OpenKB **Agents** with `propose` permission. Open the dashboard's **Agents** page and change that identity to `write` if this Grok instance is trusted to save active knowledge directly. Do not create a second name for every session; use the same name for the same client instance.
 
 In a running TUI session you can also open `/mcps`, confirm `openkb` is enabled, and press `r` after editing `config.toml` to refresh the server list.
 
