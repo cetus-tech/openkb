@@ -13,6 +13,7 @@ import {
   deleteKnowledgeVersion,
   type DeleteKnowledgeVersionResult,
   registerOrUpdateAgent,
+  touchAgent,
   listAgents,
   lookupAgent,
   deleteAgent,
@@ -55,6 +56,7 @@ export interface KnowledgeService {
   deleteProposal(id: string | number): Promise<boolean>
   /* agents */
   registerOrUpdateAgent(input: RegisterAgentInput): Promise<{ agent: AgentInfo; created: boolean }>
+  touchAgent(input: RegisterAgentInput): Promise<void>
   lookupAgent(name: string): Promise<AgentInfo | undefined>
   listAgents(): Promise<AgentInfo[]>
   deleteAgent(agentId: string | number): Promise<boolean>
@@ -86,6 +88,7 @@ export function createKnowledgeService(db: Knex): KnowledgeService {
     updateProposal: (id, input) => updateProposal(db, id, input),
     deleteProposal: (id) => deleteProposal(db, id),
     registerOrUpdateAgent: (input) => registerOrUpdateAgent(db, input),
+    touchAgent: (input) => touchAgent(db, input),
     lookupAgent: (name) => lookupAgent(db, name),
     listAgents: () => listAgents(db),
     deleteAgent: (agentId) => deleteAgent(db, agentId),

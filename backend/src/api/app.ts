@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import sensible from '@fastify/sensible';
 import cors from '@fastify/cors';
+import compress from '@fastify/compress';
 import type { FastifyRequest } from 'fastify';
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { resolve, extname, relative } from 'path';
@@ -147,6 +148,8 @@ export function buildApp(service?: KnowledgeService) {
     });
     app.register(sensible);
     app.register(cors, { origin: false });
+    // gzip/brotli for text responses (JSON, HTML, docs, static assets).
+    app.register(compress, { global: true });
 
     app.get('/health', async () => ({ ok: true }));
     app.get('/version', async () => ({ version: OPENKB_VERSION }));

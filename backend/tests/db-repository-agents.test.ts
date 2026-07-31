@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { createKnex } from '../src/db/index.js'
 import {
   registerOrUpdateAgent,
+  touchAgent,
   lookupAgent,
   listAgents,
   deleteAgent,
@@ -90,6 +91,54 @@ describe('db agents', () => {
       expect(agent.lastTokenPrefix).toBe('okb_aabb...3344')
       expect(agent.lastTokenName).toBe('seed')
       expect(agent.lastTokenPermission).toBe('propose')
+    } finally {
+      await db.destroy()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('touchAgent registers unknown agents and throttles last-seen writes', async () => {
+    const { dir, db } = await sqliteDb()
+    try {
+      const nowIso = new Date().toISOString()
+      const [userId] = await db('users').insert({
+        email: 'touch@test.com',
+        password_hash: 'x',
+        password_salt: 'y',
+        role: 'owner',
+        created_at: nowIso,
+        updated_at: nowIso,
+      })
+      const insertToken = async (suffix: string) => {
+        const plain = `okb_touch_${suffix}`
+        const [tokenId] = await db('api_tokens').insert({
+          user_id: userId,
+          name: `touch-${suffix}`,
+          token_prefix: plain.slice(0, 8),
+          token_value: plain,
+          created_at: nowIso,
+          last_used_at: null,
+        })
+        return Number(tokenId)
+      }
+      const tokenA = await insertToken('a')
+
+      await touchAgent(db, { name: 'hot-path', tokenId: tokenA })
+      const afterFirst = await lookupAgent(db, 'hot-path')
+      expect(afterFirst).toBeDefined()
+      const firstSeen = afterFirst!.lastSeenAt
+      expect(firstSeen).toBeTruthy()
+
+      // Immediate repeat with the same token is a no-op write.
+      await touchAgent(db, { name: 'hot-path', tokenId: tokenA })
+      const afterRepeat = await lookupAgent(db, 'hot-path')
+      expect(afterRepeat!.lastSeenAt).toBe(firstSeen)
+
+      // A different token bypasses the throttle and is recorded.
+      const tokenB = await insertToken('b')
+      await touchAgent(db, { name: 'hot-path', tokenId: tokenB })
+      const afterTokenChange = await lookupAgent(db, 'hot-path')
+      expect(afterTokenChange!.lastTokenId).toBe(tokenB)
     } finally {
       await db.destroy()
       await rm(dir, { recursive: true, force: true })

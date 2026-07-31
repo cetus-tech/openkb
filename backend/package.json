@@ -17,6 +17,7 @@
     "node": ">=22.13.0"
   },
   "dependencies": {
+    "@fastify/compress": "^9.1.0",
     "@fastify/cors": "^11.3.0",
     "@fastify/sensible": "^6.0.4",
     "@modelcontextprotocol/sdk": "^1.29.0",

@@ -99,6 +99,29 @@ describe('api app', () => {
     expect(fallback.body).toContain('OpenKB UI')
   })
 
+  it('serves hashed assets with immutable caching and conditional 304s', async () => {
+    const publicDir = join(process.cwd(), 'dist/public')
+    await mkdir(join(publicDir, 'assets'), { recursive: true })
+    await writeFile(join(publicDir, 'assets', 'index-D4TQhecK.js'), 'console.log(1)')
+
+    const app = buildApp()
+    const first = await app.inject({ method: 'GET', url: '/assets/index-D4TQhecK.js' })
+    expect(first.statusCode).toBe(200)
+    expect(String(first.headers['cache-control'])).toContain('immutable')
+    expect(first.headers['etag']).toBeTruthy()
+
+    const conditional = await app.inject({
+      method: 'GET',
+      url: '/assets/index-D4TQhecK.js',
+      headers: { 'if-none-match': String(first.headers['etag']) },
+    })
+    expect(conditional.statusCode).toBe(304)
+
+    const root = await app.inject({ method: 'GET', url: '/' })
+    expect(root.statusCode).toBe(200)
+    expect(String(root.headers['cache-control'])).toContain('no-cache')
+  })
+
   it('creates knowledge, searches, and returns scoped context', async () => {
     const { app, db, dir, auth } = await testApp()
     try {

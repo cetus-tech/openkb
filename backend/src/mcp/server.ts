@@ -310,8 +310,8 @@ async function resolveAgent(
   const permission: AgentPermission = context.tokenPermission ?? (context.authenticated ? 'propose' : 'read')
 
   if (agentName !== 'anonymous') {
-    // Register/refresh the identity label for the Agents dashboard.
-    await service.registerOrUpdateAgent({
+    // Register/refresh the identity label for the Agents dashboard (throttled).
+    await service.touchAgent({
       name: agentName,
       tokenId: context.tokenId,
     })
