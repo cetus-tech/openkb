@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import sensible from '@fastify/sensible';
 import cors from '@fastify/cors';
+import type { FastifyRequest } from 'fastify';
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { resolve, extname, relative } from 'path';
 import { fileURLToPath } from 'url';
@@ -8,6 +9,7 @@ import { OPENKB_VERSION, knowledgeTypes } from '../core/index.js';
 import { serveStatic } from './static.js';
 import type { KnowledgeService } from '../core/service.js';
 import type { AgentPermission } from '../db/db-access.js';
+import type { UserRole } from './auth.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const DOCS_DIR = resolve(__dirname, '../../docs');
@@ -34,6 +36,16 @@ const DOC_ORDER: Record<string, number> = {
     'development/contributing': 12,
     'development/database': 13,
 };
+
+/**
+ * Role resolved by v1AuthHook from the authenticated user (session or token).
+ * Owner = full admin surface; member = read + propose (no direct knowledge
+ * writes, no proposal review decisions, no agent/setting management).
+ */
+function isOwner(request: FastifyRequest): boolean {
+    const authContext = (request as FastifyRequest & { authContext?: { userRole?: UserRole } }).authContext;
+    return authContext?.userRole === 'owner';
+}
 
 function compareDocs(a: DocEntry, b: DocEntry): number {
     return a.order - b.order || a.path.localeCompare(b.path);
@@ -201,6 +213,8 @@ export function buildApp(service?: KnowledgeService) {
     app.post('/v1/knowledge', async (request, reply) => {
         if (!service)
             return reply.serviceUnavailable('OpenKB service is not configured');
+        if (!isOwner(request))
+            return reply.forbidden('Owner role required');
         const body = request.body as {
             slug?: string;
             title?: string;
@@ -251,6 +265,8 @@ export function buildApp(service?: KnowledgeService) {
         async (request, reply) => {
             if (!service)
                 return reply.notFound('OpenKB service is not configured');
+            if (!isOwner(request))
+                return reply.forbidden('Owner role required');
             const params = request.params as {
                 slug: string;
                 versionId: string;
@@ -391,6 +407,11 @@ export function buildApp(service?: KnowledgeService) {
                 'status must be "open", "approved", or "rejected"',
             );
         }
+        // Review decisions (approve/reject/reinstate) are owner-only.
+        // Content edits of an open proposal remain available to any signed-in user.
+        if (body.status !== undefined && !isOwner(request)) {
+            return reply.forbidden('Owner role required');
+        }
         try {
             const proposal = await service.updateProposal(
                 params.id,
@@ -416,6 +437,7 @@ export function buildApp(service?: KnowledgeService) {
 
     app.delete('/v1/proposals/:id', async (request, reply) => {
         if (!service) return reply.serviceUnavailable();
+        if (!isOwner(request)) return reply.forbidden('Owner role required');
         const params = request.params as { id: string };
         try {
             const deleted = await service.deleteProposal(params.id);
@@ -437,6 +459,7 @@ export function buildApp(service?: KnowledgeService) {
 
     app.delete('/v1/knowledge/:slug', async (request, reply) => {
         if (!service) return reply.notFound();
+        if (!isOwner(request)) return reply.forbidden('Owner role required');
         const params = request.params as { slug: string };
         const deleted = await service.deleteKnowledge(params.slug);
         if (!deleted)
@@ -448,6 +471,7 @@ export function buildApp(service?: KnowledgeService) {
 
     app.post('/v1/agents', async (request, reply) => {
         if (!service) return reply.serviceUnavailable();
+        if (!isOwner(request)) return reply.forbidden('Owner role required');
         const body = request.body as {
             name?: string;
             permissionLevel?: AgentPermission;
@@ -469,6 +493,7 @@ export function buildApp(service?: KnowledgeService) {
 
     app.patch('/v1/agents/:agentId/permission', async (request, reply) => {
         if (!service) return reply.serviceUnavailable();
+        if (!isOwner(request)) return reply.forbidden('Owner role required');
         const params = request.params as { agentId: string };
         const body = request.body as { permissionLevel?: AgentPermission };
         if (
@@ -491,6 +516,7 @@ export function buildApp(service?: KnowledgeService) {
 
     app.delete('/v1/agents/:agentId', async (request, reply) => {
         if (!service) return reply.serviceUnavailable();
+        if (!isOwner(request)) return reply.forbidden('Owner role required');
         const params = request.params as { agentId: string };
         const deleted = await service.deleteAgent(params.agentId);
         if (!deleted)
@@ -502,6 +528,7 @@ export function buildApp(service?: KnowledgeService) {
 
     app.get('/v1/settings/:key', async (request, reply) => {
         if (!service) return reply.serviceUnavailable();
+        if (!isOwner(request)) return reply.forbidden('Owner role required');
         const params = request.params as { key: string };
         const value = await service.getAppSetting(params.key);
         if (value === null)
@@ -511,6 +538,7 @@ export function buildApp(service?: KnowledgeService) {
 
     app.put('/v1/settings/:key', async (request, reply) => {
         if (!service) return reply.serviceUnavailable();
+        if (!isOwner(request)) return reply.forbidden('Owner role required');
         const params = request.params as { key: string };
         const body = (request.body as { value?: string }) || {};
         if (typeof body.value !== 'string')

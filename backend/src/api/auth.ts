@@ -90,11 +90,15 @@ export interface AuthToken {
   userEmail: string
 }
 
+export type UserRole = 'owner' | 'member'
+
 export interface AuthContext {
   method: 'token' | 'session'
   userId?: number
   token?: AuthToken
   sessionId?: number
+  /** Resolved from the owning user record; attached by v1AuthHook. */
+  userRole?: UserRole
 }
 
 export const SESSION_COOKIE_NAME = 'openkb_session'
@@ -172,6 +176,23 @@ async function findUser(db: Knex, userId: number): Promise<UserRowSummary | unde
   return db<UserRowSummary>('users').select('id', 'email', 'name', 'role').where({ id: userId }).first()
 }
 
+export interface AuthenticatedUser {
+  context: AuthContext
+  user: UserRowSummary
+}
+
+/** Resolve the authenticated user (session cookie or bearer token) for a request. */
+export async function authenticateUser(
+  db: Knex,
+  request: Pick<FastifyRequest, 'headers'>,
+): Promise<AuthenticatedUser | undefined> {
+  const context = await lookupAuthContext(db, request)
+  if (!context?.userId) return undefined
+  const user = await findUser(db, context.userId)
+  if (!user) return undefined
+  return { context, user }
+}
+
 async function createSession(db: Knex, userId: number): Promise<{ value: string; expiresAt: string }> {
   const value = `oks_${randomBytes(32).toString('hex')}`
   const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000).toISOString()
@@ -206,11 +227,14 @@ export function v1AuthHook(db: Knex) {
       return
     }
 
-    const authContext = await lookupAuthContext(db, request)
-    if (!authContext) {
+    const auth = await authenticateUser(db, request)
+    if (!auth) {
       return reply.unauthorized('Missing or invalid Authorization header')
     }
-    ;(request as FastifyRequest & { authContext: AuthContext }).authContext = authContext
+    ;(request as FastifyRequest & { authContext: AuthContext }).authContext = {
+      ...auth.context,
+      userRole: auth.user.role as UserRole,
+    }
   }
 }
 
@@ -396,17 +420,12 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
   // ── User management (dashboard) ──────────────────────────────────
 
   async function requireSignedInUser(request: FastifyRequest, reply: FastifyReply) {
-    const context = await lookupAuthContext(db, request)
-    if (!context?.userId) {
+    const auth = await authenticateUser(db, request)
+    if (!auth) {
       reply.unauthorized('Sign in required')
       return undefined
     }
-    const user = await findUser(db, context.userId)
-    if (!user) {
-      reply.unauthorized('Sign in required')
-      return undefined
-    }
-    return { context, user }
+    return auth
   }
 
   async function requireOwner(request: FastifyRequest, reply: FastifyReply) {

@@ -23,6 +23,15 @@ OpenKB keeps browser authentication and MCP tokens separate:
 - Signing out removes the browser session but does not revoke MCP/API tokens. Revoke those explicitly from Settings or `DELETE /auth/tokens/:id`.
 - `OPENKB_TOKEN` is an environment variable used by the MCP client. It is not a server-side database setting.
 
+## Role-based API authorization
+
+Every `/v1/*` endpoint requires an authenticated session or bearer token. Beyond that, routes are split by the user's role:
+
+- **Any authenticated user (owner or member)** can read knowledge, search, fetch context, create proposals, and edit open proposal content.
+- **Owner only** can create/delete knowledge, delete knowledge versions, decide proposal status (approve/reject/reinstate), delete proposals, manage agents (create, change permission, delete), and read/write app settings.
+
+Members are read + propose users; direct knowledge writes and review decisions require the owner role. The same rules apply whether the request uses a browser session or a bearer token.
+
 ## Public deployments
 
 MCP requests require a bearer token. Put OpenKB behind HTTPS before allowing access outside a private network. Do not place a token in a URL query string or commit it to a repository.
