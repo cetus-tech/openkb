@@ -151,7 +151,16 @@ export function buildApp(service?: KnowledgeService) {
         const content = readDoc(docPath, preferredLang);
         if (!content)
             return reply.notFound(`Documentation page not found: ${docPath}`);
-        return reply.type('text/markdown').send(content);
+
+        const proto = (request.headers['x-forwarded-proto'] as string) || request.protocol || 'http';
+        const host = (request.headers['x-forwarded-host'] as string) || request.headers.host || 'localhost:6800';
+        const siteUrl = `${proto}://${host}`;
+        let processedContent = content.replaceAll('http://localhost:6800', siteUrl);
+        if (siteUrl.startsWith('https://')) {
+            processedContent = processedContent.replaceAll('https://kb.example.com', siteUrl);
+        }
+
+        return reply.type('text/markdown').send(processedContent);
     });
 
     app.get('/v1/knowledge', async (request) => {

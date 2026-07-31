@@ -44,6 +44,30 @@ describe('api app', () => {
     ])
   })
 
+  it('replaces doc server URL placeholders with request host dynamically', async () => {
+    const app = buildApp()
+    // HTTP request
+    const resHttp = await app.inject({
+      method: 'GET',
+      url: '/v1/docs/integrations/chatgpt',
+      headers: { host: 'my-custom-domain.com:8080' },
+    })
+
+    expect(resHttp.statusCode).toBe(200)
+    expect(resHttp.body).toContain('https://kb.example.com/mcp') // Preserved for HTTP
+
+    // HTTPS request
+    const resHttps = await app.inject({
+      method: 'GET',
+      url: '/v1/docs/integrations/chatgpt',
+      headers: { host: 'my-custom-domain.com:8443', 'x-forwarded-proto': 'https' },
+    })
+
+    expect(resHttps.statusCode).toBe(200)
+    expect(resHttps.body).toContain('https://my-custom-domain.com:8443/mcp')
+    expect(resHttps.body).not.toContain('https://kb.example.com/mcp')
+  })
+
   it('serves the built web UI at root with SPA fallback', async () => {
     const publicDir = join(process.cwd(), 'dist/public')
     await mkdir(publicDir, { recursive: true })

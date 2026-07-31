@@ -87,9 +87,22 @@ async function ensureMarked(): Promise<void> {
     markedConfigured = true;
 }
 
+export function replaceDocSiteUrl(source: string): string {
+    if (!source) return '';
+    if (typeof window !== 'undefined' && window.location?.origin) {
+        const origin = window.location.origin;
+        let processed = source.replaceAll('http://localhost:6800', origin);
+        if (origin.startsWith('https://')) {
+            processed = processed.replaceAll('https://kb.example.com', origin);
+        }
+        return processed;
+    }
+    return source;
+}
+
 /** Render Markdown to sanitized HTML (shared by docs, preview panes, edit workspace). */
 export async function renderMarkdown(source: string): Promise<string> {
-    const text = source?.trim();
+    const text = replaceDocSiteUrl(source)?.trim();
     if (!text) return '';
     try {
         await ensureMarked();
