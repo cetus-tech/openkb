@@ -38,6 +38,13 @@ registerAuthRoutes(app, db)
 app.post('/mcp', async (request, reply) => {
   const authToken = (request as typeof request & { authToken?: Awaited<ReturnType<typeof lookupAuthToken>> }).authToken
   if (!authToken) return reply.unauthorized('MCP requires a valid user-owned bearer token')
+
+  // Normalize Accept header for MCP clients that send generic Accept headers (e.g. */* or application/json)
+  const currentAccept = request.raw.headers['accept'] || ''
+  if (!currentAccept.includes('text/event-stream') || !currentAccept.includes('application/json')) {
+    request.raw.headers['accept'] = 'application/json, text/event-stream'
+  }
+
   reply.hijack()
   await handleMcpHttpRequest(service, request.raw, reply.raw, request.body, {
     authenticated: true,
