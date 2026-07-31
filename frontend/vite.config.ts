@@ -39,6 +39,10 @@ export default defineConfig({
         target: 'http://localhost:6800',
         changeOrigin: true,
       },
+      '/version': {
+        target: 'http://localhost:6800',
+        changeOrigin: true,
+      },
     },
   },
 })

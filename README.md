@@ -70,4 +70,4 @@ The endpoint accepts Streamable HTTP JSON-RPC requests. It requires a bearer tok
 3. Call `openkb_remember` when a durable discovery should survive the session.
 4. Review and approve proposals in the dashboard.
 
-New authenticated agents can propose knowledge. A user can promote a trusted agent to direct write access.
+New authenticated agents can propose knowledge. Owners and admins grant direct write access per token in **Settings → Tokens** (members are capped at `propose`); the claimed agent name never changes permissions.

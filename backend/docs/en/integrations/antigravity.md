@@ -49,10 +49,10 @@ Use the configured OpenKB MCP server as the project's durable knowledge source.
 - Before any non-trivial task, call `openkb_get_context` with the current project and path.
 - Use relevant OpenKB results when planning and implementing the task.
 - Before finishing, call `openkb_remember` to propose new knowledge or update an existing slug for review.
-- Use `openkb_upsert_knowledge` only when this agent has `write` permission and a direct active save is intentional.
+- Use `openkb_upsert_knowledge` only when the token has `write` permission and a direct active save is intentional.
 ```
 
-Restart your Antigravity agent session after configuration to ensure the tools and rules are loaded.
+Restart your Antigravity agent session after configuration so the tools and rules load.
 
 ## 4. Verify
 

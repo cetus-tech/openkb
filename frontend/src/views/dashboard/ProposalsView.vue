@@ -130,10 +130,12 @@ import {
     type ProposalPage,
 } from '@/utils/api';
 import { useI18nStore } from '@/stores/i18n';
+import { useSessionStore } from '@/stores/session';
 
 const route = useRoute();
 const router = useRouter();
 const i18n = useI18nStore();
+const session = useSessionStore();
 const dialog = useDialog();
 const loading = ref(true);
 const error = ref('');
@@ -331,7 +333,7 @@ const columns = computed<DataTableColumns<Proposal>>(() => [
         key: 'actions',
         width: 80,
         render: (row) => {
-            if (row.status !== 'rejected') return null;
+            if (!session.isAdmin || row.status !== 'rejected') return null;
             return h(
                 NButton,
                 {
@@ -412,5 +414,8 @@ async function fetchProposals() {
     }
 }
 
-onMounted(fetchProposals);
+onMounted(() => {
+    void session.loadSession();
+    fetchProposals();
+});
 </script>

@@ -49,7 +49,12 @@ describe('DashboardView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
-    mockFetch.mockResolvedValue(jsonResponse({ knowledge: [], agents: [], proposals: [], tokens: [], ok: true, total: 0 }))
+    mockFetch.mockImplementation((url: string | URL) => {
+      if (String(url).includes('/auth/session')) {
+        return Promise.resolve(jsonResponse({ user: { role: 'owner' } }))
+      }
+      return Promise.resolve(jsonResponse({ knowledge: [], agents: [], proposals: [], tokens: [], ok: true, total: 0 }))
+    })
     localStorage.setItem('openkb_token', 'test-token')
   })
 
@@ -68,6 +73,7 @@ describe('DashboardView', () => {
 
   it('shows stat cards when data loads', async () => {
     mockFetch
+      .mockResolvedValueOnce(jsonResponse({ user: { role: 'owner' } }))
       .mockResolvedValueOnce(jsonResponse({ ok: true }))
       .mockResolvedValueOnce(jsonResponse({ knowledge: [{ id: 'd1', title: 'One', summary: 'Summary', slug: 'one', type: 'rule', scope: {}, version: 1 }], total: 1 }))
       .mockResolvedValueOnce(jsonResponse({ agents: [] }))
@@ -98,6 +104,7 @@ describe('DashboardView', () => {
 
   it('hides setup guide if setup_guide_dismissed is true in app_settings', async () => {
     mockFetch
+      .mockResolvedValueOnce(jsonResponse({ user: { role: 'owner' } }))
       .mockResolvedValueOnce(jsonResponse({ ok: true }))
       .mockResolvedValueOnce(jsonResponse({ knowledge: [], total: 0 }))
       .mockResolvedValueOnce(jsonResponse({ agents: [] }))
@@ -112,6 +119,7 @@ describe('DashboardView', () => {
 
   it('permanently hides setup guide when all steps were completed once', async () => {
     mockFetch
+      .mockResolvedValueOnce(jsonResponse({ user: { role: 'owner' } }))
       .mockResolvedValueOnce(jsonResponse({ ok: true }))
       .mockResolvedValueOnce(jsonResponse({ knowledge: [{ id: 'k1' }], total: 1 }))
       .mockResolvedValueOnce(jsonResponse({ agents: [{ id: 'a1', name: 'agent' }] }))

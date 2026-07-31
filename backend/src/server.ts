@@ -3,7 +3,7 @@ import { loadConfig } from './config/index.js'
 import { createKnex } from './db/index.js'
 import { createKnowledgeService } from './core/service.js'
 import { lookupAuthToken, registerAuthRoutes, v1AuthHook } from './api/auth.js'
-import { handleMcpHttpRequest } from './mcp/server.js'
+import { handleMcpHttpRequest, normalizeMcpAcceptHeader } from './mcp/server.js'
 import { existsSync, mkdirSync } from 'fs'
 import { dirname } from 'path'
 const config = loadConfig()
@@ -40,10 +40,7 @@ app.post('/mcp', async (request, reply) => {
   if (!authToken) return reply.unauthorized('MCP requires a valid user-owned bearer token')
 
   // Normalize Accept header for MCP clients that send generic Accept headers (e.g. */* or application/json)
-  const currentAccept = request.raw.headers['accept'] || ''
-  if (!currentAccept.includes('text/event-stream') || !currentAccept.includes('application/json')) {
-    request.raw.headers['accept'] = 'application/json, text/event-stream'
-  }
+  normalizeMcpAcceptHeader(request.raw)
 
   reply.hijack()
   await handleMcpHttpRequest(service, request.raw, reply.raw, request.body, {
@@ -52,6 +49,7 @@ app.post('/mcp', async (request, reply) => {
     userId: authToken.userId,
     userEmail: authToken.userEmail,
     tokenId: authToken.id,
+    tokenPermission: authToken.permissionLevel,
     logger: request.log,
   })
 })

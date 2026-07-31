@@ -34,10 +34,9 @@ data/
 .pnpm-store/
 pnpm-debug.log
 
-# Docker
-.dockerignore
+# Generated type declarations for tooling configs
+frontend/*.config.d.ts
 
 # scripts
 scripts/
 dist-image/
-

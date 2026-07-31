@@ -50,7 +50,7 @@ Supported statuses:
 
 Only `active` knowledge items are used for normal search/context retrieval.
 
-In practice, the web dashboard is the easiest place for a person to create active knowledge. Agents normally use `openkb_remember`, which creates a proposal instead of changing the active item immediately.
+People usually create active knowledge in the web dashboard. Agents use `openkb_remember`, which creates a proposal instead of changing the active item immediately.
 
 ## 2. Version knowledge
 
@@ -62,15 +62,15 @@ When a knowledge item is updated:
 
 1. OpenKB writes a new version row.
 2. The knowledge item's current version pointer moves to the new version.
-3. Older versions remain stored for history and future recovery workflows.
+3. Older versions remain stored for history and recovery.
 
-This makes OpenKB safer than copying loose Markdown between tools: the canonical knowledge item has history.
+Canonical knowledge keeps full history. Copying loose Markdown between tools does not.
 
 Each version can store a short **change note** (`changeSummary`) that explains what changed. In the dashboard Knowledge editor, that field is optional when you edit an existing item. If you omit it, OpenKB falls back to the knowledge summary. Approved proposals use the proposal summary as the version change note.
 
 The dashboard **Knowledge** list defaults to active items, supports search, filters, pagination, Markdown import/export, and per-row active/inactive toggles. Opening an item shows a version timeline and a **Rendered / Raw** Markdown pane. Older versions are read-only snapshots; deleting a knowledge item also removes its stored version history. Individual historical versions can be deleted when more than one remains.
 
-If an update does not provide new scope metadata, OpenKB keeps the existing scope. If an explicit scope is provided, it replaces the previous scope. This prevents an ordinary content edit from accidentally widening or narrowing who receives the knowledge.
+If an update does not provide new scope metadata, OpenKB keeps the existing scope. If an explicit scope is provided, it replaces the previous scope. A plain content edit does not widen or narrow who receives the knowledge by accident.
 
 ## 3. Review proposed changes
 
@@ -97,7 +97,7 @@ In the dashboard, **Proposals** can be filtered by status (including deep links 
 
 ## 4. Retrieve scoped context
 
-OpenKB can return relevant context for the current project, and file path.
+OpenKB can return relevant context for the current project and file path.
 
 Example scope:
 
@@ -112,7 +112,7 @@ Example context request via MCP:
 
 The agent invokes the `openkb_get_context` tool with `path="backend/src/api/app.ts"`.
 
-OpenKB filters inactive knowledge items, checks scope, then ranks more specific matches higher. A knowledge item scoped to `backend/src/api/**` should beat a broad general note when the current path is `backend/src/api/app.ts`.
+OpenKB filters inactive knowledge items, checks scope, then ranks more specific matches higher. A knowledge item scoped to `backend/src/api/**` beats a broad general note when the current path is `backend/src/api/app.ts`.
 
 ## 5. Inactive Knowledge
 
@@ -121,7 +121,7 @@ Knowledge can be deactivated at any time from the dashboard editor without losin
 - **`status: inactive`**: Retained in database history, visible in the web UI, but skipped during retrieval.
 - **`status: active`**: Included in vector context lookup, keyword search, and listing tools.
 
-Inactive items are intentionally excluded from normal MCP retrieval. Use the web dashboard when you need to inspect, restore, or manage inactive knowledge.
+MCP search and context skip inactive items. Use the web dashboard to inspect, restore, or manage inactive knowledge.
 
 ## 6. Remember what changed
 
@@ -132,16 +132,15 @@ After an agent finishes work, it should propose durable knowledge that future se
 3. call `openkb_remember` for durable findings
 4. human approves useful proposals in the web UI
 
-This replaces the older static-export-first workflow. OpenKB should behave like an AI memory layer, not a generator for editor-specific files.
+This path replaces the older static-export-first workflow. OpenKB acts as an AI memory layer. It does not generate editor-specific files as its main job.
 
-## 6. Improve the knowledge base
+## 7. Improve the knowledge base
 
 The loop continues as agents and humans work:
 
 - search OpenKB before non-trivial changes
 - retrieve scoped context for the current path
 - propose missing or corrected knowledge
-- approve useful proposals
-- approve useful memory/knowledge proposals so future agents can retrieve them
+- approve useful proposals so future agents can retrieve them
 
-This keeps project knowledge current without making every agent read every knowledge item all the time.
+Project knowledge stays current, and agents only load the items they need.

@@ -79,13 +79,16 @@ export interface KnowledgeVersionPage {
 
 export interface RegisterAgentInput {
   name: string
-  permissionLevel?: AgentPermission
   label?: string
   /** API/MCP token id last used by this agent (from bearer auth). */
   tokenId?: number
 }
 
-export type AgentPermission = 'read' | 'propose' | 'write' | 'admin'
+/** Only write agent last-seen metadata at most this often per agent. */
+const AGENT_TOUCH_INTERVAL_MS = 60_000
+
+/** MCP permission granted by a bearer token. There is deliberately no admin tier: the MCP surface never gets dashboard admin powers. */
+export type AgentPermission = 'read' | 'propose' | 'write'
 
 /* ------------------------------------------------------------------ */
 /*  Output types                                                       */
@@ -110,7 +113,6 @@ export interface ChangeProposal {
 export interface AgentRow {
   id: number
   name: string
-  permission_level: AgentPermission
   label?: string | null
   last_seen_at?: string | null
   last_token_id?: number | null
@@ -121,7 +123,6 @@ export interface AgentRow {
 export interface AgentInfo {
   id: number
   name: string
-  permissionLevel: AgentPermission
   label?: string
   lastSeenAt?: string
   /** Last MCP/API token used by this agent when connecting. */
@@ -129,6 +130,8 @@ export interface AgentInfo {
   lastTokenPrefix?: string
   lastTokenName?: string
   lastUserName?: string
+  /** Permission of the last token used by this agent (display only; MCP gating reads the current request's token). */
+  lastTokenPermission?: AgentPermission
   createdAt: string
   updatedAt: string
 }
@@ -159,6 +162,17 @@ interface VersionRow {
   change_summary?: string | null
   created_by?: string | null
   created_at: string
+}
+
+/** knowledge row joined with its current (latest) version snapshot. */
+interface KnowledgeJoinedRow extends KnowledgeRow {
+  version_id?: number | null
+  version_number?: number | null
+  content_markdown?: string | null
+  content_hash?: string | null
+  change_summary?: string | null
+  created_by?: string | null
+  version_created_at?: string | null
 }
 
 interface ProposalRow {
@@ -237,8 +251,40 @@ async function versionForDocument(db: Knex, knowledgeId: number, versionId?: num
   return db<VersionRow>('knowledge_versions').where({ knowledge_id: knowledgeId }).orderBy('version_number', 'desc').first()
 }
 
-async function rowToKnowledge(db: Knex, row: KnowledgeRow): Promise<Knowledge> {
-  const version = await versionForDocument(db, row.id, row.current_version_id)
+/**
+ * One-row-per-knowledge query that carries the current version inline.
+ * The correlated subquery picks the latest version, so it also covers
+ * orphaned/stale current_version_id rows without a second query.
+ */
+function joinedKnowledgeSelect(db: Knex) {
+  return db<KnowledgeJoinedRow>('knowledge as k')
+    .leftJoin(
+      'knowledge_versions as v',
+      'v.id',
+      db.raw('(select v2.id from knowledge_versions v2 where v2.knowledge_id = k.id order by v2.version_number desc limit 1)'),
+    )
+    .select(
+      'k.id',
+      'k.slug',
+      'k.title',
+      'k.type',
+      'k.status',
+      'k.summary',
+      'k.scope_json',
+      'k.current_version_id',
+      'k.created_at',
+      'k.updated_at',
+      'v.id as version_id',
+      'v.version_number',
+      'v.content_markdown',
+      'v.content_hash',
+      'v.change_summary',
+      'v.created_by',
+      'v.created_at as version_created_at',
+    )
+}
+
+function mapKnowledgeRow(row: KnowledgeJoinedRow): Knowledge {
   return {
     id: row.id,
     slug: row.slug,
@@ -246,10 +292,10 @@ async function rowToKnowledge(db: Knex, row: KnowledgeRow): Promise<Knowledge> {
     summary: row.summary,
     type: row.type,
     status: row.status,
-    content: version?.content_markdown ?? '',
+    content: row.content_markdown ?? '',
     scope: parseScope(row.scope_json),
-    version: version?.version_number ?? 0,
-    createdBy: version?.created_by ?? undefined,
+    version: row.version_number ?? 0,
+    createdBy: row.created_by ?? undefined,
     updatedAt: row.updated_at,
   }
 }
@@ -334,25 +380,37 @@ async function upsertKnowledgeInTransaction(trx: Knex, input: UpsertKnowledgeInp
 /* ------------------------------------------------------------------ */
 
 export async function listKnowledge(db: Knex): Promise<Knowledge[]> {
-  const rows = await db<KnowledgeRow>('knowledge').orderBy('updated_at', 'desc').orderBy('slug', 'asc')
-  return Promise.all(rows.map((row) => rowToKnowledge(db, row)))
+  const rows = await joinedKnowledgeSelect(db)
+    .orderBy('k.updated_at', 'desc')
+    .orderBy('k.slug', 'asc')
+  return rows.map(mapKnowledgeRow)
 }
 
 export async function listKnowledgePage(db: Knex, options: KnowledgeListOptions = {}): Promise<KnowledgePage> {
   const normalizedQuery = options.query?.trim().toLowerCase()
-  const allKnowledge = await listKnowledge(db)
-  const filtered = allKnowledge.filter((k) => {
-    if (options.type && k.type !== options.type) return false
-    if (options.status && k.status !== options.status) return false
-    if (!normalizedQuery) return true
-    return [k.title, k.summary, k.slug, k.content]
-      .some((value) => value.toLowerCase().includes(normalizedQuery))
-  })
-  const { page, pageSize, totalPages } = pageValues(filtered.length, options)
-  const start = (page - 1) * pageSize
+  let query = joinedKnowledgeSelect(db)
+  if (options.type) query = query.where('k.type', options.type)
+  if (options.status) query = query.where('k.status', options.status)
+  if (normalizedQuery) {
+    const pattern = `%${normalizedQuery}%`
+    query = query.whereRaw(
+      '(lower(k.title) like ? or lower(k.summary) like ? or lower(k.slug) like ? or lower(v.content_markdown) like ?)',
+      [pattern, pattern, pattern, pattern],
+    )
+  }
+
+  const countRow = await query.clone().count('k.id as count').first() as { count?: number | string } | undefined
+  const total = Number(countRow?.count ?? 0)
+  const { page, pageSize, totalPages } = pageValues(total, options)
+  const rows = await query
+    .clone()
+    .orderBy('k.updated_at', 'desc')
+    .orderBy('k.slug', 'asc')
+    .limit(pageSize)
+    .offset((page - 1) * pageSize)
   return {
-    knowledge: filtered.slice(start, start + pageSize),
-    total: filtered.length,
+    knowledge: rows.map(mapKnowledgeRow),
+    total,
     page,
     pageSize,
     totalPages,
@@ -361,18 +419,18 @@ export async function listKnowledgePage(db: Knex, options: KnowledgeListOptions 
 
 export async function getKnowledge(db: Knex, slugOrId: string | number): Promise<Knowledge | undefined> {
   const key = String(slugOrId)
-  const query = db<KnowledgeRow>('knowledge')
+  const query = joinedKnowledgeSelect(db)
   const row = /^\d+$/.test(key)
-    ? await query.where({ id: Number(key) }).orWhere({ slug: key }).first()
-    : await query.where({ slug: key }).first()
-  return row ? rowToKnowledge(db, row) : undefined
+    ? await query.where('k.id', Number(key)).orWhere('k.slug', key).first()
+    : await query.where('k.slug', key).first()
+  return row ? mapKnowledgeRow(row) : undefined
 }
 
 export async function listDocumentVersions(db: Knex, slugOrId: string | number, options: VersionListOptions = {}): Promise<KnowledgeVersionPage | undefined> {
   const key = String(slugOrId)
-  const documentRow = /^\d+$/.test(key)
-    ? await db<KnowledgeRow>('knowledge').where({ id: Number(key) }).orWhere({ slug: key }).first()
-    : await db<KnowledgeRow>('knowledge').where({ slug: key }).first()
+  const knowledge = await getKnowledge(db, slugOrId)
+  if (!knowledge) return undefined
+  const documentRow = await db<KnowledgeRow>('knowledge').where({ id: knowledge.id }).first()
   if (!documentRow) return undefined
 
   const countRow = await db<VersionRow>('knowledge_versions')
@@ -387,7 +445,7 @@ export async function listDocumentVersions(db: Knex, slugOrId: string | number, 
     .limit(pageSize)
     .offset((page - 1) * pageSize)
   return {
-    knowledge: await rowToKnowledge(db, documentRow),
+    knowledge,
     versions: rows.map((row) => versionFromRow(row, documentRow.current_version_id)),
     total,
     page,
@@ -746,7 +804,6 @@ export async function registerOrUpdateAgent(db: Knex, input: RegisterAgentInput)
 
   const agentId = await insertId(db, 'agents', {
     name: input.name,
-    permission_level: input.permissionLevel ?? 'propose',
     label: input.label ?? null,
     last_seen_at: timestamp,
     last_token_id: input.tokenId ?? null,
@@ -755,6 +812,39 @@ export async function registerOrUpdateAgent(db: Knex, input: RegisterAgentInput)
   })
   const agent = await getAgentById(db, agentId)
   return { agent: agent!, created: true }
+}
+
+/**
+ * Cheap identity touch used by the MCP hot path: registers the agent when
+ * unknown and refreshes last_seen_at/last_token_id at most once per interval.
+ * Avoids a DB write on every MCP request/tool call while keeping the Agents
+ * dashboard roughly current.
+ */
+export async function touchAgent(db: Knex, input: RegisterAgentInput): Promise<void> {
+  const timestamp = now()
+  const existing = await db<AgentRow>('agents').where({ name: input.name }).first()
+  if (!existing) {
+    await insertId(db, 'agents', {
+      name: input.name,
+      label: input.label ?? null,
+      last_seen_at: timestamp,
+      last_token_id: input.tokenId ?? null,
+      created_at: timestamp,
+      updated_at: timestamp,
+    })
+    return
+  }
+
+  const lastSeen = existing.last_seen_at ? Date.parse(existing.last_seen_at) : 0
+  const recentlySeen = Number.isFinite(lastSeen) && Date.now() - lastSeen < AGENT_TOUCH_INTERVAL_MS
+  const sameToken = input.tokenId == null || existing.last_token_id === input.tokenId
+  if (recentlySeen && sameToken) return
+
+  await db<AgentRow>('agents').where({ id: existing.id }).update({
+    last_seen_at: timestamp,
+    ...(input.tokenId ? { last_token_id: input.tokenId } : {}),
+    updated_at: timestamp,
+  })
 }
 
 export async function lookupAgent(db: Knex, name: string): Promise<AgentInfo | undefined> {
@@ -772,7 +862,6 @@ export async function listAgents(db: Knex): Promise<AgentInfo[]> {
     .select(
       'a.id',
       'a.name',
-      'a.permission_level',
       'a.label',
       'a.last_seen_at',
       'a.last_token_id',
@@ -781,26 +870,12 @@ export async function listAgents(db: Knex): Promise<AgentInfo[]> {
       't.token_prefix as token_prefix',
       't.token_value as token_value',
       't.name as token_name',
+      't.permission_level as token_permission',
       'u.name as user_name',
       'u.email as user_email',
     )
     .orderBy('a.last_seen_at', 'desc')
   return rows.map((row) => agentFromJoinedRow(row as AgentJoinedRow))
-}
-
-export async function updateAgentPermission(
-  db: Knex,
-  agentId: string | number,
-  permissionLevel: AgentPermission,
-): Promise<AgentInfo | undefined> {
-  const timestamp = now()
-  const id = asRowId(agentId)
-  if (id == null) return undefined
-  const updated = await db<AgentRow>('agents')
-    .where({ id })
-    .update({ permission_level: permissionLevel, updated_at: timestamp })
-  if (!updated) return undefined
-  return getAgentById(db, id)
 }
 
 export async function deleteAgent(db: Knex, agentId: string | number): Promise<boolean> {
@@ -814,6 +889,7 @@ interface AgentJoinedRow extends AgentRow {
   token_prefix?: string | null
   token_value?: string | null
   token_name?: string | null
+  token_permission?: AgentPermission | null
   user_name?: string | null
   user_email?: string | null
 }
@@ -825,7 +901,6 @@ async function getAgentById(db: Knex, agentId: string | number): Promise<AgentIn
     .select(
       'a.id',
       'a.name',
-      'a.permission_level',
       'a.label',
       'a.last_seen_at',
       'a.last_token_id',
@@ -834,6 +909,7 @@ async function getAgentById(db: Knex, agentId: string | number): Promise<AgentIn
       't.token_prefix as token_prefix',
       't.token_value as token_value',
       't.name as token_name',
+      't.permission_level as token_permission',
       'u.name as user_name',
       'u.email as user_email',
     )
@@ -852,13 +928,13 @@ function agentFromJoinedRow(row: AgentJoinedRow): AgentInfo {
   return {
     id: row.id,
     name: row.name,
-    permissionLevel: row.permission_level,
     label: row.label ?? undefined,
     lastSeenAt: row.last_seen_at ?? undefined,
     lastTokenId: row.last_token_id ?? undefined,
     lastTokenPrefix: tokenShortForm(row.token_prefix, row.token_value),
     lastTokenName: row.token_name ?? undefined,
     lastUserName: row.user_name || row.user_email || undefined,
+    lastTokenPermission: row.token_permission ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

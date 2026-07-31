@@ -30,7 +30,36 @@ export interface McpRequestContext {
   userEmail?: string
   /** API/MCP token id used for this request (for last-used tracking on agents). */
   tokenId?: number
+  /**
+   * MCP permission granted by the bearer token. This is the single source of
+   * truth for tool gating; the client-asserted agent name is identity only.
+   */
+  tokenPermission?: AgentPermission
   logger?: McpLogger
+}
+
+/**
+ * Streamable HTTP requires the Accept header to advertise both
+ * `application/json` and `text/event-stream`. Some MCP clients send generic
+ * values (a wildcard, or `application/json` only). This mutates both the parsed
+ * headers and the raw header array — the MCP SDK's hono adapter reads
+ * `rawHeaders`, not `headers`, when building the web-standard request.
+ */
+export function normalizeMcpAcceptHeader(raw: IncomingMessage): void {
+  const currentAccept = raw.headers['accept'] || ''
+  if (currentAccept.includes('text/event-stream') && currentAccept.includes('application/json')) return
+  const normalized = 'application/json, text/event-stream'
+  raw.headers['accept'] = normalized
+
+  const rawHeaders = raw.rawHeaders
+  let found = false
+  for (let index = 0; index < rawHeaders.length; index += 2) {
+    if (rawHeaders[index]?.toLowerCase() === 'accept') {
+      rawHeaders[index + 1] = normalized
+      found = true
+    }
+  }
+  if (!found) rawHeaders.push('accept', normalized)
 }
 
 interface AgentIdentity {
@@ -41,19 +70,23 @@ interface AgentIdentity {
 }
 
 /**
- * MCP tool surface (permission-gated).
+ * MCP tool surface (permission-gated by the bearer token).
  *
  * Design notes (MCP best practices):
  * - One tool per agent goal; avoid near-duplicate tools that call the same backend.
  * - Keep the default authenticated (propose) set small so clients load fewer schemas.
- * - Advertise write/admin tools only when the resolved agent has those permissions.
+ * - Advertise write tools only when the request token has write permission.
  *
  * | Permission | Tools |
  * |------------|--------|
  * | read       | whoami, get_context, search, get_knowledge, list_types, list_versions |
  * | propose    | + remember, list_proposals, get_proposal |
  * | write      | + upsert_knowledge, delete_knowledge |
- * | admin      | + list_agents |
+ *
+ * There is no admin tier on the MCP surface: tokens max out at write, and
+ * dashboard admin actions stay owner-only in the REST API. Permission is owned
+ * by the bearer token (set in Settings → MCP tokens), not by the agent name.
+ * Claiming any agent name never changes the granted tools.
  */
 const baseTools: McpTool[] = [
   {
@@ -161,22 +194,15 @@ const writeTools: McpTool[] = [
   },
 ]
 
-const adminTools: McpTool[] = [{
-  name: 'openkb_list_agents',
-  description: 'List registered agent identities and their permissions. Administrators only.',
-  inputSchema: {},
-}]
-
-/** Optional identity args on every tool when headers cannot be set. */
+/** Optional identity args on every tool when headers cannot be set. Identity only — never changes permissions. */
 const identityProperties: ToolInputShape = {
   agentName: z.string().optional().describe('Optional agent identity used for permissions, for example grok'),
 }
 
 export function toolsForPermission(permission: AgentPermission): McpTool[] {
   const tools = [...baseTools]
-  if (permission === 'propose' || permission === 'write' || permission === 'admin') tools.push(...proposeTools)
-  if (permission === 'write' || permission === 'admin') tools.push(...writeTools)
-  if (permission === 'admin') tools.push(...adminTools)
+  if (permission === 'propose' || permission === 'write') tools.push(...proposeTools)
+  if (permission === 'write') tools.push(...writeTools)
   return tools.map((tool) => ({
     ...tool,
     inputSchema: {
@@ -279,37 +305,17 @@ async function resolveAgent(
   const agentName = String(args?.agentName ?? context.agentName ?? '').trim() || 'anonymous'
   const userId = context.userId
   const userEmail = context.userEmail
+  // Permission comes from the bearer token (owner-set), never from the
+  // client-asserted name. Unauthenticated requests stay at read.
+  const permission: AgentPermission = context.tokenPermission ?? (context.authenticated ? 'propose' : 'read')
 
-  // Permissions and registration are keyed only by agent name (client-asserted).
-  if (agentName === 'anonymous') {
-    return {
-      agentName,
-      permission: context.authenticated ? 'propose' : 'read',
-      userId,
-      userEmail,
-    }
-  }
-
-  const existing = await service.lookupAgent(agentName)
-  if (existing) {
-    await service.registerOrUpdateAgent({
+  if (agentName !== 'anonymous') {
+    // Register/refresh the identity label for the Agents dashboard (throttled).
+    await service.touchAgent({
       name: agentName,
       tokenId: context.tokenId,
     })
-    return {
-      agentName,
-      permission: existing.permissionLevel,
-      userId,
-      userEmail,
-    }
   }
-
-  const permission: AgentPermission = context.authenticated ? 'propose' : 'read'
-  await service.registerOrUpdateAgent({
-    name: agentName,
-    permissionLevel: permission,
-    tokenId: context.tokenId,
-  })
   return { agentName, permission, userId, userEmail }
 }
 
@@ -334,10 +340,10 @@ async function handleToolCall(service: KnowledgeService, tool: string, args: Rec
           `permission: ${agent.permission}`,
           `tools (${available.length}): ${available.join(', ')}`,
           agent.permission === 'read'
-            ? 'Hint: authenticated agents default to propose; ask a human to raise permission in Agents if you need remember/write tools.'
+            ? 'Hint: ask the token owner to raise the token permission in Settings → MCP tokens if you need remember/write tools.'
             : agent.permission === 'propose'
-              ? 'Hint: use openkb_remember for reviewable writes; openkb_upsert_knowledge requires write permission. Knowledge is attributed to the token owner.'
-              : 'Hint: knowledge writes are attributed to the human who owns the API token.',
+              ? 'Hint: use openkb_remember for reviewable writes; openkb_upsert_knowledge requires write token permission. Knowledge is attributed to the token owner.'
+              : 'Hint: this token has write permission. Knowledge writes are attributed to the human who owns the API token.',
         ].filter(Boolean).join('\n'))
         break
       }
@@ -469,13 +475,6 @@ async function handleToolCall(service: KnowledgeService, tool: string, args: Rec
         result = textResult(`Knowledge "${slug}" deleted.`)
         break
       }
-      case 'openkb_list_agents': {
-        const agents = await service.listAgents()
-        result = textResult(agents.length
-          ? `Registered agents:\n\n${agents.map((item) => `- **${item.name}** - ${item.permissionLevel}${item.lastSeenAt ? ` - last seen ${item.lastSeenAt}` : ''}`).join('\n')}`
-          : 'No agents registered.')
-        break
-      }
       default:
         throw { code: -32601, message: `Unknown tool: ${tool}` }
     }
@@ -558,6 +557,7 @@ export async function handleMcpHttpRequest(
       userId: context.userId,
       userEmail: context.userEmail,
       tokenId: context.tokenId,
+      tokenPermission: context.tokenPermission,
       logger: context.logger,
     })
     response.once('close', () => {

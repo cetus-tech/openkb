@@ -4,7 +4,7 @@ OpenKB exposes one agent service: a Streamable HTTP MCP endpoint at `/mcp`. It r
 
 ## MCP in plain language
 
-MCP is the protocol between an agent client and OpenKB. OpenKB is the MCP server; Codex, Grok, ChatGPT, Cursor, and similar tools are MCP clients. A client sends requests to `/mcp`, OpenKB runs a knowledge tool, and the result is returned to the agent. You normally configure a URL and token in the client; you do not run a second MCP process.
+MCP is the protocol between an agent client and OpenKB. OpenKB is the MCP server; Codex, Grok, ChatGPT, Cursor, and similar tools are MCP clients. A client sends requests to `/mcp`, OpenKB runs a knowledge tool, and the result is returned to the agent. You configure a URL and token in the client; you do not run a second MCP process.
 
 ## Connection details
 
@@ -14,7 +14,7 @@ MCP is the protocol between an agent client and OpenKB. OpenKB is the MCP server
 | Transport | Streamable HTTP; do not use stdio for a remote OpenKB server |
 | MCP authentication | `Authorization: Bearer <OpenKB API token>` |
 | Web authentication | HttpOnly browser session cookie |
-| Identity header | `X-OpenKB-Agent: codex` (required for permissions) |
+| Identity header | `X-OpenKB-Agent: codex` (identity label only; permissions come from the token) |
 
 Browser login and MCP authentication are separate. Login creates a browser session; it does not create or rotate an API token. Create a token from **Settings → MCP tokens** or the authenticated `POST /auth/tokens` endpoint. The full token is stored in the database and can be copied again from Settings. Never share it in a prompt or commit it to a project file.
 
@@ -39,9 +39,9 @@ The authentication endpoints have separate responsibilities:
 |---|---|---|
 | `POST` | `/auth/login` | Verify a user password and set the browser session cookie |
 | `POST` | `/auth/register` | Create an account (`name`, `email`, `password`); first user is owner |
-| `POST` | `/auth/tokens` | Create one named bearer token for an MCP/API client |
+| `POST` | `/auth/tokens` | Create one named bearer token with a permission level for an MCP/API client |
 | `GET` | `/auth/tokens` | List tokens owned by the signed-in user (includes full `value`) |
-| `PATCH` | `/auth/tokens/:id` | Rename a token |
+| `PATCH` | `/auth/tokens/:id` | Rename a token or change its permission (members: read/propose only) |
 | `DELETE` | `/auth/tokens/:id` | Explicitly revoke one bearer token |
 | `POST` | `/auth/logout` | End the browser session without revoking bearer tokens |
 | `GET` | `/v1/users` | List dashboard users |
@@ -57,8 +57,8 @@ For ChatGPT, add the server from **Settings → Plugins → MCP**. Enter the rem
 
 OpenKB identity has two layers:
 
-- **Bearer token**: authenticates the request and identifies the **human owner**. Knowledge and proposals are attributed to that user (`createdBy`).
-- **Agent name**: client-asserted (`agentName` / `X-OpenKB-Agent`), used for permissions and registration only. It is not used for knowledge attribution.
+- **Bearer token**: authenticates the request, identifies the **human owner**, and **carries the MCP permission** (`read`, `propose`, or `write`). Knowledge and proposals are attributed to that user (`createdBy`).
+- **Agent name**: client-asserted (`agentName` / `X-OpenKB-Agent`) identity label. It is registered for the Agents dashboard and used for display, but it **never changes permissions**.
 
 Configure the agent name as an HTTP header when the MCP client supports custom headers:
 
@@ -68,26 +68,25 @@ X-OpenKB-Agent: codex
 
 For clients that cannot send custom headers, pass `agentName` in the `arguments` object of each OpenKB tool call. If the client also lets you customize the initial `tools/list` request, include the same fields in its `params` so permission-specific tools are advertised immediately. These optional fields are included in the tool schemas. `AGENTS.md` is only the instruction that tells an agent to call OpenKB; it is not the identity registration mechanism.
 
-The first authenticated request with a new agent name registers it automatically in **Agents** with `propose` permission. OpenKB also records the last MCP token used by that agent (shown on the Agents page). An owner can open **Agents**, select `write` for a trusted client, or leave it at `propose` so its memories appear in **Proposals** for review. The `admin` level also allows the agent to list agent identities.
+The first authenticated request with a new agent name registers it automatically in **Agents** as an identity label. OpenKB also records the last MCP token used by that agent (shown on the Agents page). Tool permissions are a property of the **bearer token**, not the name: owners and admins set a token's level in **Settings → Tokens** (`read`, `propose`, or `write`), and members can only create `read`/`propose` tokens. Admin permissions are managed via the web dashboard. Claiming any agent name, even an existing one, never changes the tools your token grants.
 
-Use a stable agent name. For example, use `codex` for the normal Codex workspace and a different name such as `codex-ci` only when it represents a separate client with separate permissions.
+Use a stable agent name so the Agents page shows one identity per client, and create a separate token when a client needs a different permission. For example, use one `propose` token for everyday work and a separate `write` token for a trusted CI identity.
 
 ## Available tools
 
-Tools are **permission-gated**. Clients only see tools the resolved agent may call. That is intentional MCP design: fewer, goal-oriented tools in the schema, higher-privilege tools only for trusted identities.
+Tools are **permission-gated by the bearer token**. Clients only see tools the request token allows. The schema keeps a short list of goal-oriented tools and exposes higher-privilege tools only to trusted credentials.
 
 | Permission | Typical tool count | Tools |
 |---|---:|---|
 | `read` | 6 | `openkb_whoami`, `openkb_get_context`, `openkb_search`, `openkb_get_knowledge`, `openkb_list_types`, `openkb_list_versions` |
-| `propose` (default for new authenticated agents) | 9 | read tools + `openkb_remember`, `openkb_list_proposals`, `openkb_get_proposal` |
+| `propose` (default for new tokens) | 9 | read tools + `openkb_remember`, `openkb_list_proposals`, `openkb_get_proposal` |
 | `write` | 11 | propose tools + `openkb_upsert_knowledge`, `openkb_delete_knowledge` |
-| `admin` | 12 | write tools + `openkb_list_agents` |
 
 ### Read tools
 
 | Tool | Purpose |
 |---|---|
-| `openkb_whoami` | Resolved agent name, token owner, permission, server version, and tools available at that level |
+| `openkb_whoami` | Resolved agent name, token owner, token permission, server version, and tools available at that level |
 | `openkb_get_context` | **Primary entry:** most relevant active knowledge for project and path |
 | `openkb_search` | Search active knowledge; omit `query` to list active items (optional path/type filters) |
 | `openkb_get_knowledge` | Fetch one complete active item by slug |
@@ -102,28 +101,22 @@ Tools are **permission-gated**. Clients only see tools the resolved agent may ca
 | `openkb_list_proposals` | List proposals (default: open) |
 | `openkb_get_proposal` | Fetch one proposal by id, including full proposed Markdown |
 
-### Write tools (trusted agents only)
+### Write tools (write tokens only)
 
 | Tool | Purpose |
 |---|---|
 | `openkb_upsert_knowledge` | Create or update **active** knowledge directly (skips review) |
 | `openkb_delete_knowledge` | Delete a knowledge item by slug |
 
-### Admin tools
+Approving or rejecting proposals remains a **dashboard** action for humans (or the REST API). Agents have no MCP approve tool.
 
-| Tool | Purpose |
-|---|---|
-| `openkb_list_agents` | List registered agent identities and permissions |
+### Compact tool surface
 
-Approving or rejecting proposals remains a **dashboard** action for humans (or the REST API). Agents do not get an MCP approve tool by design.
-
-### Why not more tools?
-
-MCP clients load every advertised tool schema into the model context. OpenKB therefore:
+MCP clients load every advertised tool schema into the model context. OpenKB keeps that surface small:
 
 - Merges list + search into `openkb_search` (omit `query` to list).
 - Uses a single propose path: `openkb_remember` (new or update by slug).
-- Exposes write/admin tools only when the agent has those permissions.
+- Exposes write tools only when the token has write permission.
 - Leaves human workflow (approve proposal, manage tokens) in the web dashboard.
 
 ## What happens to a change
@@ -131,11 +124,11 @@ MCP clients load every advertised tool schema into the model context. OpenKB the
 There are two safe ways to change knowledge:
 
 - A human saves knowledge from the web dashboard. It becomes active immediately and starts a new version.
-- An agent with `propose` permission calls `openkb_remember`. OpenKB creates an open proposal and leaves the current active knowledge unchanged. A human can approve it to create the next version or reject it without changing canonical knowledge.
+- A client using a `propose` token calls `openkb_remember`. OpenKB creates an open proposal and leaves the current active knowledge unchanged. A human can approve it to create the next version or reject it without changing canonical knowledge.
 
 Only active knowledge is returned by normal MCP search, context, list, and single-item retrieval. Inactive items remain available to humans in the dashboard for management and history, but they do not silently influence an agent.
 
-An agent with `write` permission can call `openkb_upsert_knowledge` to save active knowledge directly. Use this only for an explicitly trusted identity; proposal mode is the safer default.
+A client using a `write` token can call `openkb_upsert_knowledge` to save active knowledge directly. Grant `write` only to explicitly trusted tokens; proposal mode is the safer default.
 
 ## Scope
 

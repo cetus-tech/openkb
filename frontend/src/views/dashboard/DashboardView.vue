@@ -12,7 +12,7 @@
           <template #icon><div class="i-tabler-refresh" /></template>
           {{ i18n.t('common.refresh') }}
         </n-button>
-        <n-button type="primary" @click="router.push({ path: '/dashboard/knowledge', query: { create: 'true' } })">
+        <n-button v-if="session.isAdmin" type="primary" @click="router.push({ path: '/dashboard/knowledge', query: { create: 'true' } })">
           <template #icon><div class="i-tabler-plus" /></template>
           {{ i18n.t('dashboard.addKnowledge') }}
         </n-button>
@@ -151,7 +151,7 @@
           />
           <n-empty v-else description="No active knowledge items" class="py-8">
             <template #extra>
-              <n-button type="primary" size="small" @click="router.push({ path: '/dashboard/knowledge', query: { create: 'true' } })">
+              <n-button v-if="session.isAdmin" type="primary" size="small" @click="router.push({ path: '/dashboard/knowledge', query: { create: 'true' } })">
                 {{ i18n.t('dashboard.addKnowledge') }}
               </n-button>
             </template>
@@ -171,7 +171,8 @@
               class="flex min-w-0 items-center gap-3 py-2 first:pt-0 last:pb-0"
             >
               <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-white">{{ agent.name }}</span>
-              <n-tag size="small" :type="permissionType(agent.permissionLevel)" :bordered="false">{{ agent.permissionLevel }}</n-tag>
+              <n-tag v-if="agent.lastTokenPermission" size="small" :type="permissionType(agent.lastTokenPermission)" :bordered="false">{{ agent.lastTokenPermission }}</n-tag>
+              <n-tag v-else size="small" :bordered="false">no token yet</n-tag>
               <span class="shrink-0 text-xs text-gray-400 dark:text-dark-500">
                 {{ agent.lastSeenAt ? relativeTime(agent.lastSeenAt) : 'Waiting' }}
               </span>
@@ -200,9 +201,11 @@ import { useRouter } from 'vue-router'
 import { NTag, type DataTableColumns } from 'naive-ui'
 import { apiFetch, relativeTime, scopeLabel, type Agent, type Knowledge, type KnowledgePage, type Proposal, type ProposalPage } from '@/utils/api'
 import { useI18nStore } from '@/stores/i18n'
+import { useSessionStore } from '@/stores/session'
 
 const router = useRouter()
 const i18n = useI18nStore()
+const session = useSessionStore()
 const loading = ref(true)
 const hasLoaded = ref(false)
 const error = ref('')
@@ -369,7 +372,6 @@ const stats = computed(() => [
 ])
 
 function permissionType(permission: string): 'default' | 'info' | 'success' | 'warning' | 'error' {
-  if (permission === 'admin') return 'error'
   if (permission === 'write') return 'success'
   if (permission === 'propose') return 'warning'
   return 'default'
@@ -439,5 +441,8 @@ async function fetchDashboard() {
   loading.value = false
 }
 
-onMounted(fetchDashboard)
+onMounted(() => {
+  void session.loadSession()
+  fetchDashboard()
+})
 </script>

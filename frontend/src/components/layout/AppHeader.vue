@@ -24,6 +24,14 @@
                         class="truncate text-sm font-semibold text-gray-900 dark:text-white"
                         >OpenKB</span
                     >
+                    <n-tag
+                        v-if="versionStore.version"
+                        size="tiny"
+                        round
+                        :bordered="false"
+                        class="shrink-0"
+                        >v{{ versionStore.version }}</n-tag
+                    >
                 </router-link>
             </div>
 
@@ -81,11 +89,12 @@
 </template>
 
 <script setup lang="ts">
-import { h } from 'vue';
+import { h, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { NIcon } from 'naive-ui';
 import { useAppStore } from '@/stores/app';
 import { useI18nStore } from '@/stores/i18n';
+import { useVersionStore } from '@/stores/version';
 import LangToggle from './LangToggle.vue';
 import { GITHUB_REPO_URL } from '@/utils/constants';
 
@@ -93,6 +102,11 @@ const route = useRoute();
 const router = useRouter();
 const appStore = useAppStore();
 const i18n = useI18nStore();
+const versionStore = useVersionStore();
+
+onMounted(() => {
+    void versionStore.loadVersion();
+});
 
 function toggleMobile() {
     appStore.toggleMobileSidebar();

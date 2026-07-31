@@ -1,47 +1,79 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { createHighlighter, type Highlighter } from 'shiki';
+import { createHighlighterCore, type HighlighterCore } from 'shiki/core';
+import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
+import githubLight from 'shiki/themes/github-light.mjs';
+import githubDark from 'shiki/themes/github-dark.mjs';
+import langTypeScript from 'shiki/langs/typescript.mjs';
+import langJavaScript from 'shiki/langs/javascript.mjs';
+import langTsx from 'shiki/langs/tsx.mjs';
+import langJsx from 'shiki/langs/jsx.mjs';
+import langVue from 'shiki/langs/vue.mjs';
+import langHtml from 'shiki/langs/html.mjs';
+import langCss from 'shiki/langs/css.mjs';
+import langScss from 'shiki/langs/scss.mjs';
+import langPython from 'shiki/langs/python.mjs';
+import langGo from 'shiki/langs/go.mjs';
+import langRust from 'shiki/langs/rust.mjs';
+import langJava from 'shiki/langs/java.mjs';
+import langC from 'shiki/langs/c.mjs';
+import langCpp from 'shiki/langs/cpp.mjs';
+import langBash from 'shiki/langs/bash.mjs';
+import langShell from 'shiki/langs/shell.mjs';
+import langPowerShell from 'shiki/langs/powershell.mjs';
+import langJson from 'shiki/langs/json.mjs';
+import langYaml from 'shiki/langs/yaml.mjs';
+import langToml from 'shiki/langs/toml.mjs';
+import langXml from 'shiki/langs/xml.mjs';
+import langSql from 'shiki/langs/sql.mjs';
+import langGraphql from 'shiki/langs/graphql.mjs';
+import langMarkdown from 'shiki/langs/markdown.mjs';
+import langDiff from 'shiki/langs/diff.mjs';
 import type { Knowledge } from '@/utils/api';
 
 // ---------------------------------------------------------------------------
-// Shiki highlighter — initialised once, shared across all renders.
-// Uses dual-theme (light + dark) with CSS variable overrides for .dark mode.
+// Shiki highlighter — initialised once, shared across all renders. Built from
+// the core API with only the languages used in this app (the full 'shiki'
+// bundle pulls in ~300 grammar chunks). Dual-theme (light + dark) with CSS
+// variable overrides for .dark mode.
 // ---------------------------------------------------------------------------
 
-let highlighterPromise: Promise<Highlighter> | null = null;
+const highlighterLangs = [
+    langTypeScript,
+    langJavaScript,
+    langTsx,
+    langJsx,
+    langVue,
+    langHtml,
+    langCss,
+    langScss,
+    langPython,
+    langGo,
+    langRust,
+    langJava,
+    langC,
+    langCpp,
+    langBash,
+    langShell,
+    langPowerShell,
+    langJson,
+    langYaml,
+    langToml,
+    langXml,
+    langSql,
+    langGraphql,
+    langMarkdown,
+    langDiff,
+];
 
-function getHighlighter(): Promise<Highlighter> {
+let highlighterPromise: Promise<HighlighterCore> | null = null;
+
+function getHighlighter(): Promise<HighlighterCore> {
     if (!highlighterPromise) {
-        highlighterPromise = createHighlighter({
-            themes: ['github-light', 'github-dark'],
-            langs: [
-                'typescript',
-                'javascript',
-                'tsx',
-                'jsx',
-                'vue',
-                'html',
-                'css',
-                'scss',
-                'python',
-                'go',
-                'rust',
-                'java',
-                'c',
-                'cpp',
-                'bash',
-                'shell',
-                'powershell',
-                'json',
-                'yaml',
-                'toml',
-                'xml',
-                'sql',
-                'graphql',
-                'markdown',
-                'diff',
-                'plaintext',
-            ],
+        highlighterPromise = createHighlighterCore({
+            themes: [githubLight, githubDark],
+            langs: highlighterLangs,
+            engine: createOnigurumaEngine(import('shiki/wasm')),
         });
     }
     return highlighterPromise;
@@ -57,7 +89,7 @@ getHighlighter().catch(() => {
 // ---------------------------------------------------------------------------
 
 let markedConfigured = false;
-let cachedHighlighter: Highlighter | null = null;
+let cachedHighlighter: HighlighterCore | null = null;
 
 async function ensureMarked(): Promise<void> {
     if (markedConfigured) return;

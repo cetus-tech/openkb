@@ -1,13 +1,15 @@
 import Fastify from 'fastify';
 import sensible from '@fastify/sensible';
 import cors from '@fastify/cors';
+import compress from '@fastify/compress';
+import type { FastifyRequest } from 'fastify';
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { resolve, extname, relative } from 'path';
 import { fileURLToPath } from 'url';
 import { OPENKB_VERSION, knowledgeTypes } from '../core/index.js';
 import { serveStatic } from './static.js';
 import type { KnowledgeService } from '../core/service.js';
-import type { AgentPermission } from '../db/db-access.js';
+import { isAdminRole, type UserRole } from './auth.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const DOCS_DIR = resolve(__dirname, '../../docs');
@@ -30,10 +32,28 @@ const DOC_ORDER: Record<string, number> = {
     'integrations/antigravity': 8,
     'concepts/overview': 9,
     'concepts/knowledge-lifecycle': 10,
-    'introduction/project-structure': 11,
-    'development/contributing': 12,
-    'development/database': 13,
+    'concepts/permissions': 11,
+    'introduction/project-structure': 12,
+    'development/contributing': 13,
+    'development/database': 14,
 };
+
+/**
+ * Role resolved by v1AuthHook from the authenticated user (session or token).
+ * Owner and admin share the admin surface (knowledge writes, proposal review,
+ * agent/setting management); member = read + propose. Owner additionally
+ * manages users and owner roles.
+ */
+function isAdmin(request: FastifyRequest): boolean {
+    const authContext = (request as FastifyRequest & { authContext?: { userRole?: UserRole } }).authContext;
+    return isAdminRole(authContext?.userRole);
+}
+
+/** Authenticated user's email (attached by v1AuthHook); used for attribution. */
+function currentUserEmail(request: FastifyRequest): string | undefined {
+    const authContext = (request as FastifyRequest & { authContext?: { userEmail?: string } }).authContext;
+    return authContext?.userEmail;
+}
 
 function compareDocs(a: DocEntry, b: DocEntry): number {
     return a.order - b.order || a.path.localeCompare(b.path);
@@ -134,6 +154,8 @@ export function buildApp(service?: KnowledgeService) {
     });
     app.register(sensible);
     app.register(cors, { origin: false });
+    // gzip/brotli for text responses (JSON, HTML, docs, static assets).
+    app.register(compress, { global: true });
 
     app.get('/health', async () => ({ ok: true }));
     app.get('/version', async () => ({ version: OPENKB_VERSION }));
@@ -201,6 +223,8 @@ export function buildApp(service?: KnowledgeService) {
     app.post('/v1/knowledge', async (request, reply) => {
         if (!service)
             return reply.serviceUnavailable('OpenKB service is not configured');
+        if (!isAdmin(request))
+            return reply.forbidden('Admin role required');
         const body = request.body as {
             slug?: string;
             title?: string;
@@ -210,7 +234,6 @@ export function buildApp(service?: KnowledgeService) {
             content?: string;
             scope?: Record<string, unknown>;
             changeSummary?: string;
-            createdBy?: string;
         };
         if (!body.slug || !body.title || !body.summary || !body.content)
             return reply.badRequest(
@@ -228,7 +251,8 @@ export function buildApp(service?: KnowledgeService) {
             content: body.content,
             scope: body.scope,
             changeSummary: body.changeSummary,
-            createdBy: body.createdBy,
+            // Attribution is server-derived from the authenticated user, never client-supplied.
+            createdBy: currentUserEmail(request),
         });
         return reply.code(201).send({ knowledge });
     });
@@ -251,6 +275,8 @@ export function buildApp(service?: KnowledgeService) {
         async (request, reply) => {
             if (!service)
                 return reply.notFound('OpenKB service is not configured');
+            if (!isAdmin(request))
+                return reply.forbidden('Admin role required');
             const params = request.params as {
                 slug: string;
                 versionId: string;
@@ -318,7 +344,6 @@ export function buildApp(service?: KnowledgeService) {
             type?: string;
             content?: string;
             scope?: Record<string, unknown>;
-            createdBy?: string;
         };
         if (!body.title || !body.summary || !body.content)
             return reply.badRequest('title, summary, and content are required');
@@ -333,7 +358,7 @@ export function buildApp(service?: KnowledgeService) {
                 type: type as never,
                 content: body.content,
                 scope: body.scope,
-                createdBy: body.createdBy,
+                createdBy: currentUserEmail(request),
             });
             return reply.code(201).send({ proposal });
         } catch (error) {
@@ -391,6 +416,11 @@ export function buildApp(service?: KnowledgeService) {
                 'status must be "open", "approved", or "rejected"',
             );
         }
+        // Review decisions (approve/reject/reinstate) are owner-only.
+        // Content edits of an open proposal remain available to any signed-in user.
+        if (body.status !== undefined && !isAdmin(request)) {
+            return reply.forbidden('Admin role required');
+        }
         try {
             const proposal = await service.updateProposal(
                 params.id,
@@ -416,6 +446,7 @@ export function buildApp(service?: KnowledgeService) {
 
     app.delete('/v1/proposals/:id', async (request, reply) => {
         if (!service) return reply.serviceUnavailable();
+        if (!isAdmin(request)) return reply.forbidden('Admin role required');
         const params = request.params as { id: string };
         try {
             const deleted = await service.deleteProposal(params.id);
@@ -437,6 +468,7 @@ export function buildApp(service?: KnowledgeService) {
 
     app.delete('/v1/knowledge/:slug', async (request, reply) => {
         if (!service) return reply.notFound();
+        if (!isAdmin(request)) return reply.forbidden('Admin role required');
         const params = request.params as { slug: string };
         const deleted = await service.deleteKnowledge(params.slug);
         if (!deleted)
@@ -448,15 +480,14 @@ export function buildApp(service?: KnowledgeService) {
 
     app.post('/v1/agents', async (request, reply) => {
         if (!service) return reply.serviceUnavailable();
+        if (!isAdmin(request)) return reply.forbidden('Admin role required');
         const body = request.body as {
             name?: string;
-            permissionLevel?: AgentPermission;
             label?: string;
         };
         if (!body.name) return reply.badRequest('name is required');
         const { agent, created } = await service.registerOrUpdateAgent({
             name: body.name,
-            permissionLevel: body.permissionLevel ?? 'propose',
             label: body.label,
         });
         return reply.code(created ? 201 : 200).send({ agent, created });
@@ -467,30 +498,9 @@ export function buildApp(service?: KnowledgeService) {
         return { agents: await service.listAgents() };
     });
 
-    app.patch('/v1/agents/:agentId/permission', async (request, reply) => {
-        if (!service) return reply.serviceUnavailable();
-        const params = request.params as { agentId: string };
-        const body = request.body as { permissionLevel?: AgentPermission };
-        if (
-            !body.permissionLevel ||
-            !['read', 'propose', 'write', 'admin'].includes(
-                body.permissionLevel,
-            )
-        ) {
-            return reply.badRequest(
-                'permissionLevel must be one of: read, propose, write, admin',
-            );
-        }
-        const agent = await service.updateAgentPermission(
-            params.agentId,
-            body.permissionLevel,
-        );
-        if (!agent) return reply.notFound(`Agent not found: ${params.agentId}`);
-        return { agent };
-    });
-
     app.delete('/v1/agents/:agentId', async (request, reply) => {
         if (!service) return reply.serviceUnavailable();
+        if (!isAdmin(request)) return reply.forbidden('Admin role required');
         const params = request.params as { agentId: string };
         const deleted = await service.deleteAgent(params.agentId);
         if (!deleted)
@@ -502,6 +512,7 @@ export function buildApp(service?: KnowledgeService) {
 
     app.get('/v1/settings/:key', async (request, reply) => {
         if (!service) return reply.serviceUnavailable();
+        if (!isAdmin(request)) return reply.forbidden('Admin role required');
         const params = request.params as { key: string };
         const value = await service.getAppSetting(params.key);
         if (value === null)
@@ -511,6 +522,7 @@ export function buildApp(service?: KnowledgeService) {
 
     app.put('/v1/settings/:key', async (request, reply) => {
         if (!service) return reply.serviceUnavailable();
+        if (!isAdmin(request)) return reply.forbidden('Admin role required');
         const params = request.params as { key: string };
         const body = (request.body as { value?: string }) || {};
         if (typeof body.value !== 'string')

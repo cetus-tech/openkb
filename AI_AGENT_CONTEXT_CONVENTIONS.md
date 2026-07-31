@@ -29,7 +29,7 @@ Recommended export strategy:
 | OpenAI Codex CLI | `AGENTS.md` | `AGENTS.md` at repo root and often nested in subdirectories for scoped instructions | Treat `AGENTS.md` as the canonical universal coding-agent export. Nested exports are useful for monorepos. |
 | Claude Code | `CLAUDE.md` | `CLAUDE.md` at repo root; can also use user/global memory outside repo | Export concise repository instructions to `CLAUDE.md`. Keep it bootstrap-style and point to OpenKB-generated context where possible. |
 | Google Gemini CLI / Gemini Code Assist | `GEMINI.md` | `GEMINI.md` at repo root; may support hierarchical discovery depending on tool version | Export `GEMINI.md` as Gemini-specific alias. Keep content compatible with markdown. |
-| Cursor | Cursor Rules | `.cursor/rules/*.mdc` | Cursor rules can include metadata and path globs. Export one or more `.mdc` files, not just a single markdown file. |
+| Cursor | Cursor Rules | `.cursor/rules/*.mdc` | Cursor rules can include metadata and path globs. Export one or more `.mdc` files, not a single markdown file. |
 | Windsurf / Cascade | Rules and memories; supports `AGENTS.md` in some flows | `.windsurf/rules/*.md`; `AGENTS.md` is also recognized in documented contexts | Export `.windsurf/rules/openkb.md` plus optional `AGENTS.md`. Treat memories as user/tool-managed, not OpenKB-generated unless explicitly requested. |
 | OpenCode | `AGENTS.md` | `AGENTS.md` at repo root; provider/model config is separate | Export `AGENTS.md`. OpenCode is provider-agnostic and should work with the universal file. |
 | OpenClaw | likely `AGENTS.md` / OpenClaw-specific config | Verify exact current convention before implementing | Treat as a Hermes/OpenCode/Codex-style coding agent. Add adapter after checking live docs. |
@@ -51,7 +51,7 @@ Recommended export strategy:
 
 ### Universal: `AGENTS.md`
 
-`AGENTS.md` is becoming the closest thing to a cross-agent convention for repository-level AI coding instructions.
+`AGENTS.md` is the most common cross-agent convention for repository-level AI coding instructions.
 
 Recommended OpenKB behavior:
 

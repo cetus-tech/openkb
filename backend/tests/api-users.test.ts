@@ -115,4 +115,77 @@ describe('user management API', () => {
     })
     expect(selfDelete.statusCode).toBe(400)
   })
+
+  it('owner can create admin users; admins manage non-owner users', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/v1/users',
+      headers: { cookie: ownerCookie },
+      payload: { email: 'admin@test.com', password: 'secret2', role: 'admin' },
+    })
+    expect(created.statusCode).toBe(201)
+    expect(created.json().user.role).toBe('admin')
+
+    const login = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'admin@test.com', password: 'secret2' },
+    })
+    const adminCookie = cookie(login)
+
+    // Admin can create member users.
+    const createMember = await app.inject({
+      method: 'POST',
+      url: '/v1/users',
+      headers: { cookie: adminCookie },
+      payload: { email: 'm2@test.com', password: 'secret3', role: 'member' },
+    })
+    expect(createMember.statusCode).toBe(201)
+    expect(createMember.json().user.role).toBe('member')
+
+    // Admin cannot create owner accounts.
+    const createOwner = await app.inject({
+      method: 'POST',
+      url: '/v1/users',
+      headers: { cookie: adminCookie },
+      payload: { email: 'o2@test.com', password: 'secret3', role: 'owner' },
+    })
+    expect(createOwner.statusCode).toBe(403)
+
+    // Admin can promote a member to admin but not to owner.
+    const targetId = createMember.json().user.id
+    const promote = await app.inject({
+      method: 'PATCH',
+      url: `/v1/users/${targetId}`,
+      headers: { cookie: adminCookie },
+      payload: { role: 'admin' },
+    })
+    expect(promote.statusCode).toBe(200)
+    expect(promote.json().user.role).toBe('admin')
+
+    const promoteOwner = await app.inject({
+      method: 'PATCH',
+      url: `/v1/users/${targetId}`,
+      headers: { cookie: adminCookie },
+      payload: { role: 'owner' },
+    })
+    expect(promoteOwner.statusCode).toBe(403)
+
+    // Admin cannot delete the owner; owner can delete an admin.
+    const list = await app.inject({ method: 'GET', url: '/v1/users', headers: { cookie: adminCookie } })
+    const ownerRow = list.json().users.find((u: { role: string }) => u.role === 'owner')
+    const delOwner = await app.inject({
+      method: 'DELETE',
+      url: `/v1/users/${ownerRow.id}`,
+      headers: { cookie: adminCookie },
+    })
+    expect(delOwner.statusCode).toBe(403)
+
+    const delAdmin = await app.inject({
+      method: 'DELETE',
+      url: `/v1/users/${targetId}`,
+      headers: { cookie: ownerCookie },
+    })
+    expect(delAdmin.statusCode).toBe(204)
+  })
 })

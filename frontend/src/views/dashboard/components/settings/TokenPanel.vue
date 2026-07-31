@@ -52,6 +52,15 @@
                         maxlength="80"
                         @keyup.enter="createToken" />
                 </div>
+                <div class="w-40">
+                    <label
+                        class="mb-1 block text-xs font-medium uppercase tracking-wide text-primary-700 dark:text-primary-300"
+                        >{{ i18n.t('agents.permission') }}</label
+                    >
+                    <n-select
+                        v-model:value="newTokenPermission"
+                        :options="availablePermissionOptions" />
+                </div>
                 <n-button
                     type="primary"
                     :loading="creatingToken"
@@ -112,6 +121,7 @@ import { computed, h, onMounted, ref } from 'vue';
 import {
     NButton,
     NInput,
+    NSelect,
     NSpace,
     useDialog,
     type DataTableColumns,
@@ -124,6 +134,7 @@ interface ApiToken {
     name: string;
     tokenPrefix?: string;
     value?: string | null;
+    permissionLevel?: string;
     createdAt: string;
     lastUsedAt?: string;
 }
@@ -131,6 +142,18 @@ interface ApiToken {
 const dialog = useDialog();
 const i18n = useI18nStore();
 const tokenName = ref('');
+const newTokenPermission = ref('propose');
+const currentRole = ref<'owner' | 'admin' | 'member'>('member');
+const allPermissionOptions = [
+    { label: 'Read only', value: 'read' },
+    { label: 'Propose changes', value: 'propose' },
+    { label: 'Write access', value: 'write' },
+];
+const availablePermissionOptions = computed(() =>
+    currentRole.value === 'owner' || currentRole.value === 'admin'
+        ? allPermissionOptions
+        : allPermissionOptions.filter((option) => option.value === 'read' || option.value === 'propose'),
+);
 const newToken = ref('');
 const tokenCopied = ref(false);
 const tokens = ref<ApiToken[]>([]);
@@ -274,6 +297,22 @@ const tokenColumns = computed<DataTableColumns<ApiToken>>(() => [
         },
     },
     {
+        title: i18n.t('agents.permission'),
+        key: 'permissionLevel',
+        width: 140,
+        render(row) {
+            return h(
+                NSelect,
+                {
+                    value: row.permissionLevel ?? 'propose',
+                    options: availablePermissionOptions.value,
+                    size: 'small',
+                    onUpdateValue: (value: string) => savePermission(row, value),
+                },
+            );
+        },
+    },
+    {
         title: i18n.t('common.actions'),
         key: 'actions',
         align: 'right',
@@ -397,6 +436,28 @@ async function saveRename(token: ApiToken) {
     }
 }
 
+async function savePermission(token: ApiToken, permissionLevel: string) {
+    if (permissionLevel === (token.permissionLevel ?? 'propose')) return;
+    const previous = token.permissionLevel;
+    token.permissionLevel = permissionLevel;
+    try {
+        const data = await apiFetch<{ token: ApiToken }>(
+            `/auth/tokens/${encodeURIComponent(token.id)}`,
+            {
+                method: 'PATCH',
+                body: JSON.stringify({ permissionLevel }),
+            },
+        );
+        tokens.value = tokens.value.map((item) =>
+            item.id === token.id ? { ...item, ...data.token } : item,
+        );
+        tokensError.value = '';
+    } catch (err) {
+        token.permissionLevel = previous;
+        tokensError.value = `Failed to update permission: ${err instanceof Error ? err.message : 'unknown error'}`;
+    }
+}
+
 async function createToken() {
     const name = tokenName.value.trim();
     if (!name) {
@@ -409,10 +470,11 @@ async function createToken() {
             '/auth/tokens',
             {
                 method: 'POST',
-                body: JSON.stringify({ name }),
+                body: JSON.stringify({ name, permissionLevel: newTokenPermission.value }),
             },
         );
         newToken.value = data.token.value;
+        newTokenPermission.value = 'propose';
         tokensError.value = '';
         await fetchTokens();
     } catch (err) {
@@ -461,5 +523,13 @@ function revokeToken(token: ApiToken) {
 
 onMounted(async () => {
     await fetchTokens();
+    try {
+        const session = await apiFetch<{ user: { role?: string } }>('/auth/session');
+        if (session.user?.role === 'owner' || session.user?.role === 'admin' || session.user?.role === 'member') {
+            currentRole.value = session.user.role;
+        }
+    } catch {
+        // Keep the conservative member default when the session cannot be resolved.
+    }
 });
 </script>

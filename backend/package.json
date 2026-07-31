@@ -1,6 +1,6 @@
 {
   "name": "openkb-backend",
-  "version": "0.1.0",
+  "version": "1.3.0",
   "packageManager": "pnpm@11.15.1",
   "private": true,
   "description": "Self-hosted OpenKB server for canonical, versioned project knowledge.",
@@ -17,6 +17,7 @@
     "node": ">=22.13.0"
   },
   "dependencies": {
+    "@fastify/compress": "^9.1.0",
     "@fastify/cors": "^11.3.0",
     "@fastify/sensible": "^6.0.4",
     "@modelcontextprotocol/sdk": "^1.29.0",

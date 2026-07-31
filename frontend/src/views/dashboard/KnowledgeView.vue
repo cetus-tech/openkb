@@ -12,11 +12,11 @@
           <template #icon><div class="i-tabler-refresh" /></template>
           {{ i18n.t('common.refresh') }}
         </n-button>
-        <n-button type="primary" @click="openCreate">
+        <n-button v-if="session.isAdmin" type="primary" @click="openCreate">
           <template #icon><div class="i-tabler-plus" /></template>
           {{ i18n.t('knowledge.createKnowledge') }}
         </n-button>
-        <n-button secondary :loading="importing" title="Import Markdown knowledge" @click="triggerImport">
+        <n-button v-if="session.isAdmin" secondary :loading="importing" title="Import Markdown knowledge" @click="triggerImport">
           <template #icon><div class="i-tabler-upload" /></template>
           {{ i18n.t('knowledge.import') }}
         </n-button>
@@ -74,7 +74,7 @@
         <template #extra>
           <div class="flex flex-wrap justify-center gap-2">
             <n-button v-if="hasFilters" quaternary @click="clearFilters">{{ i18n.t('knowledge.clearFilters') }}</n-button>
-            <n-button v-else type="primary" @click="openCreate">
+            <n-button v-else-if="session.isAdmin" type="primary" @click="openCreate">
               <template #icon><div class="i-tabler-plus" /></template>
               {{ i18n.t('knowledge.createKnowledge') }}
             </n-button>
@@ -118,6 +118,7 @@ import { useDialog, useMessage, NButton, NTag, type DataTableColumns } from 'nai
 import { useRoute, useRouter } from 'vue-router'
 import KnowledgeEditorForm from './components/knowledge/KnowledgeEditorForm.vue'
 import { apiFetch, relativeTime, scopeAtTag, type Knowledge, type KnowledgePage } from '@/utils/api'
+import { useSessionStore } from '@/stores/session'
 import {
   emptyKnowledgeForm,
   knowledgePayloadFromForm,
@@ -132,6 +133,7 @@ const dialog = useDialog()
 const route = useRoute()
 const router = useRouter()
 const i18n = useI18nStore()
+const session = useSessionStore()
 const documents = ref<Knowledge[]>([])
 const loading = ref(true)
 const saving = ref(false)
@@ -360,17 +362,6 @@ async function onImportFiles(event: Event) {
   let ok = 0
   const failures: string[] = []
   try {
-    let currentUserLabel = ''
-    try {
-      const session = await apiFetch<{ user: { name?: string; email?: string; id?: number } }>('/auth/session')
-      currentUserLabel =
-        session.user?.name?.trim()
-        || session.user?.email?.trim()
-        || (session.user?.id != null ? String(session.user.id) : '')
-    } catch {
-      currentUserLabel = ''
-    }
-
     for (const file of files) {
       try {
         const text = await file.text()
@@ -378,7 +369,7 @@ async function onImportFiles(event: Event) {
         if (!parsed.slug || !parsed.title || !parsed.summary || !parsed.content.trim()) {
           throw new Error('Missing slug, title, summary, or content')
         }
-        const createdBy = parsed.createdBy?.trim() || currentUserLabel
+        // Attribution is set server-side from the authenticated user.
         await apiFetch('/v1/knowledge', {
           method: 'POST',
           body: JSON.stringify({
@@ -390,7 +381,6 @@ async function onImportFiles(event: Event) {
             content: parsed.content,
             scope: parsed.scope,
             changeSummary: `Imported from ${file.name}`,
-            ...(createdBy ? { createdBy } : {}),
           }),
         })
         ok += 1
@@ -475,6 +465,7 @@ watch([typeFilter, statusFilter], () => {
 })
 
 onMounted(() => {
+  void session.loadSession()
   fetchKnowledge()
   if (route.query.create === 'true') {
     openCreate()

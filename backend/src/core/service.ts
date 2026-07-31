@@ -13,9 +13,9 @@ import {
   deleteKnowledgeVersion,
   type DeleteKnowledgeVersionResult,
   registerOrUpdateAgent,
+  touchAgent,
   listAgents,
   lookupAgent,
-  updateAgentPermission,
   deleteAgent,
   deleteProposal,
   updateProposalStatus,
@@ -56,9 +56,9 @@ export interface KnowledgeService {
   deleteProposal(id: string | number): Promise<boolean>
   /* agents */
   registerOrUpdateAgent(input: RegisterAgentInput): Promise<{ agent: AgentInfo; created: boolean }>
+  touchAgent(input: RegisterAgentInput): Promise<void>
   lookupAgent(name: string): Promise<AgentInfo | undefined>
   listAgents(): Promise<AgentInfo[]>
-  updateAgentPermission(agentId: string | number, permissionLevel: AgentPermission): Promise<AgentInfo | undefined>
   deleteAgent(agentId: string | number): Promise<boolean>
   /* app settings */
   getAppSetting(key: string): Promise<string | null>
@@ -88,9 +88,9 @@ export function createKnowledgeService(db: Knex): KnowledgeService {
     updateProposal: (id, input) => updateProposal(db, id, input),
     deleteProposal: (id) => deleteProposal(db, id),
     registerOrUpdateAgent: (input) => registerOrUpdateAgent(db, input),
+    touchAgent: (input) => touchAgent(db, input),
     lookupAgent: (name) => lookupAgent(db, name),
     listAgents: () => listAgents(db),
-    updateAgentPermission: (agentId, permissionLevel) => updateAgentPermission(db, agentId, permissionLevel),
     deleteAgent: (agentId) => deleteAgent(db, agentId),
     getAppSetting: (key) => getAppSetting(db, key),
     setAppSetting: (key, value) => setAppSetting(db, key, value),

@@ -55,9 +55,11 @@ describe('AgentsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ agents: [] }),
+    mockFetch.mockImplementation((url: string | URL) => {
+      if (String(url).includes('/auth/session')) {
+        return Promise.resolve({ ok: true, json: async () => ({ user: { role: 'owner' } }) })
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ agents: [] }) })
     })
   })
 
@@ -69,25 +71,31 @@ describe('AgentsView', () => {
 
   it('renders agents in data table', async () => {
     localStorage.setItem('openkb_token', 'test-token')
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        agents: [
-          { id: '1', name: 'Claude Agent', permissionLevel: 'admin', defaultExportTypes: ['context'], createdAt: '2024-01-01' },
-          { id: '2', name: 'Cursor Agent', permissionLevel: 'read', createdAt: '2024-01-02' },
-        ],
-      }),
+    mockFetch.mockImplementation((url: string | URL) => {
+      if (String(url).includes('/auth/session')) {
+        return Promise.resolve({ ok: true, json: async () => ({ user: { role: 'owner' } }) })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          agents: [
+            { id: '1', name: 'Claude Agent', lastTokenPermission: 'write', createdAt: '2024-01-01' },
+            { id: '2', name: 'Cursor Agent', lastTokenPermission: 'read', createdAt: '2024-01-02' },
+          ],
+        }),
+      })
     })
 
     const wrapper = factory()
     await new Promise((r) => setTimeout(r, 100))
     expect(wrapper.text()).toContain('Claude Agent')
     expect(wrapper.text()).toContain('Cursor Agent')
-    expect(wrapper.text()).toContain('Administrator')
+    expect(wrapper.text()).toContain('write')
   })
 
   it('shows add modal when clicking register', async () => {
     const wrapper = factory()
+    await new Promise((r) => setTimeout(r, 20))
     const btn = wrapper.findAll('button').find(b => b.text().includes('Register agent'))
     expect(btn).toBeTruthy()
     await btn!.trigger('click')

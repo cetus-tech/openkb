@@ -1,0 +1,25 @@
+# Dependencies and build output
+**/node_modules/
+**/dist/
+**/coverage/
+**/*.tsbuildinfo
+.pnpm-store/
+
+# VCS / agent metadata
+.git
+.agents
+.codex
+.github
+
+# Local data, logs, artifacts
+data/
+backend/data/
+**/*.log
+dist-image/
+scripts/
+
+# Stale npm lockfile sits next to the pnpm one
+frontend/package-lock.json
+
+# Generated type declarations for tooling configs
+frontend/*.config.d.ts

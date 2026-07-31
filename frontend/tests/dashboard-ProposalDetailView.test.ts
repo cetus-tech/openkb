@@ -67,26 +67,33 @@ describe('ProposalDetailView', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     localStorage.clear()
-    mockFetch.mockResolvedValue(jsonResponse({ proposals: [] }))
+    mockFetch.mockImplementation((url: string | URL) => {
+      if (String(url).includes('/auth/session')) {
+        return Promise.resolve(jsonResponse({ user: { role: 'owner' } }))
+      }
+      return Promise.resolve(jsonResponse({ proposals: [] }))
+    })
     await router.push('/dashboard/proposals/1')
     await router.isReady()
   })
 
   it('fetches and displays proposal details with review guidance', async () => {
     localStorage.setItem('openkb_session', 'active')
-    mockFetch.mockResolvedValueOnce(jsonResponse({
-      proposal: {
-        id: 1,
-        title: 'New Skill',
-        summary: 'Add python skill',
-        status: 'open',
-        type: 'skill',
-        slug: 'python-skill',
-        proposedContentMarkdown: 'skill content',
-        scope: { projectSlug: 'openkb' },
-        createdAt: '2024-01-01T00:00:00.000Z',
-      },
-    })).mockResolvedValueOnce(jsonResponse({ message: 'Not found' }, false, 404))
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({ user: { role: 'owner' } }))
+      .mockResolvedValueOnce(jsonResponse({
+        proposal: {
+          id: 1,
+          title: 'New Skill',
+          summary: 'Add python skill',
+          status: 'open',
+          type: 'skill',
+          slug: 'python-skill',
+          proposedContentMarkdown: 'skill content',
+          scope: { projectSlug: 'openkb' },
+          createdAt: '2024-01-01T00:00:00.000Z',
+        },
+      })).mockResolvedValueOnce(jsonResponse({ message: 'Not found' }, false, 404))
 
     const wrapper = factory()
     await new Promise((r) => setTimeout(r, 100))
@@ -101,9 +108,11 @@ describe('ProposalDetailView', () => {
 
   it('shows action buttons for open proposals', async () => {
     localStorage.setItem('openkb_session', 'active')
-    mockFetch.mockResolvedValueOnce(jsonResponse({
-      proposal: { id: 1, title: 'P', status: 'open', slug: 'p', proposedContentMarkdown: '...', scope: {} },
-    })).mockResolvedValueOnce(jsonResponse({ message: 'Not found' }, false, 404))
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({ user: { role: 'owner' } }))
+      .mockResolvedValueOnce(jsonResponse({
+        proposal: { id: 1, title: 'P', status: 'open', slug: 'p', proposedContentMarkdown: '...', scope: {} },
+      })).mockResolvedValueOnce(jsonResponse({ message: 'Not found' }, false, 404))
 
     const wrapper = factory()
     await new Promise((r) => setTimeout(r, 100))
@@ -114,6 +123,7 @@ describe('ProposalDetailView', () => {
   it('approves proposals with session credentials via apiFetch', async () => {
     localStorage.setItem('openkb_session', 'active')
     mockFetch
+      .mockResolvedValueOnce(jsonResponse({ user: { role: 'owner' } }))
       .mockResolvedValueOnce(jsonResponse({
         proposal: { id: 1, title: 'P', status: 'open', slug: 'p', proposedContentMarkdown: '...', scope: {} },
       }))
@@ -139,9 +149,11 @@ describe('ProposalDetailView', () => {
 
   it('allows editing an open proposal before approval', async () => {
     localStorage.setItem('openkb_session', 'active')
-    mockFetch.mockResolvedValueOnce(jsonResponse({
-      proposal: { id: 1, title: 'Old Title', summary: 'Old Summary', status: 'open', slug: 'p', proposedContentMarkdown: 'Old Markdown', scope: {} },
-    })).mockResolvedValueOnce(jsonResponse({ message: 'Not found' }, false, 404))
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({ user: { role: 'owner' } }))
+      .mockResolvedValueOnce(jsonResponse({
+        proposal: { id: 1, title: 'Old Title', summary: 'Old Summary', status: 'open', slug: 'p', proposedContentMarkdown: 'Old Markdown', scope: {} },
+      })).mockResolvedValueOnce(jsonResponse({ message: 'Not found' }, false, 404))
 
     const wrapper = factory()
     await new Promise((r) => setTimeout(r, 100))

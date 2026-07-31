@@ -1,4 +1,10 @@
-export const OPENKB_VERSION = '0.1.0'
+import { createRequire } from 'node:module'
+
+// Single source of truth for the version: package.json.
+const require = createRequire(import.meta.url)
+const packageJson = require('../../package.json') as { version: string }
+
+export const OPENKB_VERSION = packageJson.version
 
 export const knowledgeTypes = [
   'context',
