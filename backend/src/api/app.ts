@@ -405,6 +405,25 @@ export function buildApp(service?: KnowledgeService) {
         }
     });
 
+    app.delete('/v1/proposals/:id', async (request, reply) => {
+        if (!service) return reply.serviceUnavailable();
+        const params = request.params as { id: string };
+        try {
+            const deleted = await service.deleteProposal(params.id);
+            if (!deleted)
+                return reply.notFound(`Proposal not found: ${params.id}`);
+            return reply.code(204).send();
+        } catch (error) {
+            if (
+                error instanceof Error &&
+                error.message.includes('Only rejected proposals can be deleted')
+            ) {
+                return reply.badRequest(error.message);
+            }
+            throw error;
+        }
+    });
+
     /* ---- Knowledge Delete ---- */
 
     app.delete('/v1/knowledge/:slug', async (request, reply) => {

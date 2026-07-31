@@ -57,8 +57,8 @@ describe('SettingsView', () => {
   it('renders heading and MCP token management', () => {
     const wrapper = factory()
     expect(wrapper.text()).toContain('Settings')
-    expect(wrapper.text()).toContain('MCP tokens')
-    expect(wrapper.text()).toContain('Create token')
+    expect(wrapper.text()).toContain('Tokens')
+    expect(wrapper.text()).toContain('Create Token')
     expect(wrapper.text()).not.toContain('Connect an MCP client')
   })
 
@@ -78,7 +78,7 @@ describe('SettingsView', () => {
 
   it('renders the browser sign out button', () => {
     const wrapper = factory()
-    expect(wrapper.text()).toContain('Sign out')
+    expect(wrapper.text()).toContain('Log out')
   })
 
   it('clears token and redirects on logout', async () => {
@@ -86,7 +86,7 @@ describe('SettingsView', () => {
     localStorage.setItem('openkb_session', 'active')
     const wrapper = factory()
 
-    const btn = wrapper.findAll('button').find((b) => b.text().includes('Sign out'))
+    const btn = wrapper.findAll('button').find((b) => b.text().includes('Log out'))
     expect(btn).toBeTruthy()
     await btn!.trigger('click')
     await new Promise((r) => setTimeout(r, 10))
@@ -120,7 +120,7 @@ describe('SettingsView', () => {
     expect(wrapper.text()).toContain('okb_1234...')
     expect(wrapper.text()).toContain('okb_8765...')
     expect(wrapper.text()).not.toContain('admin')
-    const copyButtons = wrapper.findAll('button').filter((b) => b.text().includes('Copy'))
+    const copyButtons = wrapper.findAll('button').filter((b) => b.text().includes('Copy') || b.attributes('title')?.includes('Copy'))
     expect(copyButtons.length).toBeGreaterThanOrEqual(2)
     for (const btn of copyButtons) {
       expect(btn.attributes('disabled')).toBeUndefined()

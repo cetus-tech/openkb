@@ -229,6 +229,27 @@ const tokenColumns = computed<DataTableColumns<ApiToken>>(() => [
                             { class: 'font-mono text-xs text-gray-400' },
                             tokenPreview(row),
                         ),
+                        h(
+                            NButton,
+                            {
+                                size: 'tiny',
+                                quaternary: true,
+                                onClick: () => copyToken(row),
+                                title:
+                                    copiedTokenId.value === row.id
+                                        ? i18n.t('common.copied')
+                                        : i18n.t('common.copy'),
+                            },
+                            {
+                                icon: () =>
+                                    h('div', {
+                                        class:
+                                            copiedTokenId.value === row.id
+                                                ? 'i-tabler-check text-emerald-500'
+                                                : 'i-tabler-copy',
+                                    }),
+                            },
+                        ),
                     ],
                 },
             );
@@ -256,29 +277,13 @@ const tokenColumns = computed<DataTableColumns<ApiToken>>(() => [
         title: i18n.t('common.actions'),
         key: 'actions',
         align: 'right',
-        width: 220,
+        width: 100,
         render(row) {
             return h(
                 NSpace,
                 { justify: 'end', wrapItem: false },
                 {
                     default: () => [
-                        h(
-                            NButton,
-                            {
-                                size: 'small',
-                                quaternary: true,
-                                onClick: () => copyToken(row),
-                            },
-                            {
-                                icon: () =>
-                                    h('div', { class: 'i-tabler-copy' }),
-                                default: () =>
-                                    copiedTokenId.value === row.id
-                                        ? i18n.t('common.copied')
-                                        : i18n.t('common.copy'),
-                            },
-                        ),
                         h(
                             NButton,
                             {

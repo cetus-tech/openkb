@@ -687,6 +687,21 @@ export async function updateProposalStatus(
   return updateProposal(db, proposalId, { status, reviewedBy })
 }
 
+export async function deleteProposal(
+  db: Knex,
+  proposalId: string | number,
+): Promise<boolean> {
+  const id = asRowId(proposalId)
+  if (id == null) return false
+  const proposal = await db<ProposalRow>('change_proposals').where({ id }).first()
+  if (!proposal) return false
+  if (proposal.status !== 'rejected') {
+    throw new Error(`Only rejected proposals can be deleted (current status: ${proposal.status})`)
+  }
+  const deletedCount = await db<ProposalRow>('change_proposals').where({ id }).delete()
+  return deletedCount > 0
+}
+
 function proposalFromRow(row: ProposalRow): ChangeProposal {
   return {
     id: row.id,

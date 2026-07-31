@@ -321,4 +321,33 @@ describe('api app', () => {
       await rm(dir, { recursive: true, force: true })
     }
   })
+
+  it('deletes rejected proposals', async () => {
+    const { app, db, dir } = await testApp()
+    try {
+      const create = await app.inject({
+        method: 'POST',
+        url: '/v1/proposals',
+        payload: { slug: 'del-prop', title: 'To Delete', summary: 'ToDelete', content: 'Content' },
+      })
+      const proposalId = create.json().proposal.id
+
+      // Cannot delete open proposal
+      const delOpen = await app.inject({ method: 'DELETE', url: `/v1/proposals/${proposalId}` })
+      expect(delOpen.statusCode).toBe(400)
+
+      // Reject proposal
+      await app.inject({ method: 'PATCH', url: `/v1/proposals/${proposalId}`, payload: { status: 'rejected' } })
+
+      // Delete rejected proposal
+      const delRejected = await app.inject({ method: 'DELETE', url: `/v1/proposals/${proposalId}` })
+      expect(delRejected.statusCode).toBe(204)
+
+      const getDel = await app.inject({ method: 'GET', url: `/v1/proposals/${proposalId}` })
+      expect(getDel.statusCode).toBe(404)
+    } finally {
+      await db.destroy()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
 })

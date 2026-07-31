@@ -17,6 +17,7 @@ import {
   lookupAgent,
   updateAgentPermission,
   deleteAgent,
+  deleteProposal,
   updateProposalStatus,
   updateProposal,
   type UpdateProposalInput,
@@ -52,6 +53,7 @@ export interface KnowledgeService {
   getProposal(id: string | number): ReturnType<typeof getProposal>
   updateProposalStatus(id: string | number, status: 'open' | 'approved' | 'rejected', reviewedBy?: string): Promise<any>
   updateProposal(id: string | number, input: UpdateProposalInput): Promise<any>
+  deleteProposal(id: string | number): Promise<boolean>
   /* agents */
   registerOrUpdateAgent(input: RegisterAgentInput): Promise<{ agent: AgentInfo; created: boolean }>
   lookupAgent(name: string): Promise<AgentInfo | undefined>
@@ -84,6 +86,7 @@ export function createKnowledgeService(db: Knex): KnowledgeService {
     getProposal: (id) => getProposal(db, id),
     updateProposalStatus: (id, status, reviewedBy) => updateProposalStatus(db, id, status, reviewedBy),
     updateProposal: (id, input) => updateProposal(db, id, input),
+    deleteProposal: (id) => deleteProposal(db, id),
     registerOrUpdateAgent: (input) => registerOrUpdateAgent(db, input),
     lookupAgent: (name) => lookupAgent(db, name),
     listAgents: () => listAgents(db),

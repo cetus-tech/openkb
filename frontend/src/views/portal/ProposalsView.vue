@@ -98,13 +98,14 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NTag, type DataTableColumns } from 'naive-ui'
+import { NButton, NTag, useDialog, type DataTableColumns } from 'naive-ui'
 import { apiFetch, relativeTime, type Proposal, type ProposalPage } from '@/utils/api'
 import { useI18nStore } from '@/stores/i18n'
 
 const route = useRoute()
 const router = useRouter()
 const i18n = useI18nStore()
+const dialog = useDialog()
 const loading = ref(true)
 const error = ref('')
 const proposals = ref<Proposal[]>([])
@@ -185,7 +186,7 @@ function actionLabel(proposal: Proposal): string {
   return proposal.knowledgeId ? 'updates' : 'creates'
 }
 
-const columns: DataTableColumns<Proposal> = [
+const columns = computed<DataTableColumns<Proposal>>(() => [
   {
     title: 'Proposal',
     key: 'title',
@@ -225,7 +226,50 @@ const columns: DataTableColumns<Proposal> = [
     render: (row) =>
       h('span', { class: 'text-xs text-gray-500 dark:text-dark-400' }, relativeTime(row.createdAt)),
   },
-]
+  {
+    title: i18n.t('common.actions'),
+    key: 'actions',
+    width: 100,
+    align: 'right',
+    render: (row) => {
+      if (row.status !== 'rejected') return null
+      return h(
+        NButton,
+        {
+          size: 'small',
+          quaternary: true,
+          type: 'error',
+          title: i18n.t('common.delete'),
+          onClick: (e: MouseEvent) => {
+            e.stopPropagation()
+            confirmDeleteProposal(row)
+          },
+        },
+        {
+          icon: () => h('div', { class: 'i-tabler-trash' }),
+          default: () => i18n.t('common.delete'),
+        },
+      )
+    },
+  },
+])
+
+function confirmDeleteProposal(proposal: Proposal) {
+  dialog.warning({
+    title: 'Delete Proposal',
+    content: `Are you sure you want to delete the rejected proposal "${proposal.title}"?`,
+    positiveText: i18n.t('common.delete'),
+    negativeText: i18n.t('common.cancel'),
+    onPositiveClick: async () => {
+      try {
+        await apiFetch(`/v1/proposals/${proposal.id}`, { method: 'DELETE' })
+        await fetchProposals()
+      } catch (err) {
+        error.value = `Failed to delete proposal: ${err instanceof Error ? err.message : 'unknown error'}`
+      }
+    },
+  })
+}
 
 function rowProps(row: Proposal) {
   return {

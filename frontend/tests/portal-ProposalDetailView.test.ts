@@ -151,8 +151,8 @@ describe('ProposalDetailView', () => {
     await editBtn!.trigger('click')
     await new Promise((r) => setTimeout(r, 20))
 
-    expect(wrapper.text()).toContain('Editing mode')
-    expect(wrapper.text()).toContain('Save edits')
-    expect(wrapper.text()).toContain('Approve with edits')
+    expect(wrapper.text()).toContain('Edit Mode')
+    expect(wrapper.text()).toContain('Save Edits')
+    expect(wrapper.text()).toContain('Approve with Edits')
   })
 })
