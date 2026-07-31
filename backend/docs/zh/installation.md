@@ -4,7 +4,7 @@
 
 ## Docker Compose
 
-Docker Compose 是受支持的 MVP 部署方式。它运行一个 OpenKB 容器，并将 SQLite 数据库持久化到主机目录中。
+Docker Compose 是推荐的部署方式。它运行一个 OpenKB 容器，并将 SQLite 数据库持久化到主机目录中。
 
 ```bash
 git clone https://github.com/cetus-tech/openkb.git
@@ -44,7 +44,7 @@ OPENKB_HOST=127.0.0.1 OPENKB_PORT=6800 pnpm start
 | --- | --- | --- |
 | `OPENKB_HOST` | `127.0.0.1` | 监听地址 |
 | `OPENKB_PORT` | `6800` | HTTP 端口 |
-| `OPENKB_DB_CLIENT` | `sqlite` | 数据库适配器；SQLite 是 MVP 路径 |
+| `OPENKB_DB_CLIENT` | `sqlite` | 数据库适配器；默认使用 SQLite |
 | `OPENKB_SQLITE_FILENAME` | `openkb.db` | SQLite 数据库路径 |
 | `OPENKB_DATA_DIR` | `./data` | 运行时数据目录 |
 

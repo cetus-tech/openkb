@@ -1,6 +1,6 @@
 # Database
 
-SQLite is the current MVP database for the self-hosted server. The repository keeps a separate MySQL migration path for a later deployment target. Every schema change requires both migration variants.
+SQLite is the default database for the self-hosted server. The repository keeps a separate MySQL migration path for a later deployment target. Every schema change requires both migration variants.
 
 ## Baseline layout
 

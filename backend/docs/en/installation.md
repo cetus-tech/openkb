@@ -4,7 +4,7 @@ Use the [Quick Start](../introduction/quickstart) for the shortest Docker-first 
 
 ## Docker Compose
 
-Docker Compose is the supported MVP deployment. It runs one OpenKB container and persists SQLite in a host directory.
+Docker Compose is the recommended deployment method. It runs one OpenKB container and persists SQLite in a host directory.
 
 ```bash
 git clone https://github.com/cetus-tech/openkb.git
@@ -44,7 +44,7 @@ The source default is SQLite at `./data/openkb.db`. Create the directory automat
 | ------------------------ | ----------- | ---------------------------------------- |
 | `OPENKB_HOST`            | `127.0.0.1` | Listen address                           |
 | `OPENKB_PORT`            | `6800`      | HTTP port                                |
-| `OPENKB_DB_CLIENT`       | `sqlite`    | Database adapter; SQLite is the MVP path |
+| `OPENKB_DB_CLIENT`       | `sqlite`    | Database adapter; SQLite is the default option |
 | `OPENKB_SQLITE_FILENAME` | `openkb.db` | SQLite database path                     |
 | `OPENKB_DATA_DIR`        | `./data`    | Runtime data directory                   |
 

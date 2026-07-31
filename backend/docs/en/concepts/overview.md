@@ -45,23 +45,23 @@ Agents propose new memories when they learn something durable
 | **Scope**     | Metadata that says when a knowledge item is relevant: optional project and path patterns.                       |
 | **Proposal**  | A suggested knowledge change that can be reviewed before becoming canonical (`open` / `approved` / `rejected`). |
 | **Agent**     | A registered client identity (name + permission). Knowledge attribution uses the human who owns the MCP token.  |
-| **User**      | A dashboard account (`name`, `email`, `role`) that can own MCP tokens and review proposals.                        |
+| **User**      | A dashboard account (`name`, `email`, `role`) that can own MCP tokens and review proposals.                     |
 
 ## Knowledge is the canonical unit
 
 Every OpenKB knowledge item has:
 
-| Field       | Purpose                                                                                 |
-| ----------- | --------------------------------------------------------------------------------------- |
-| `slug`      | Globally unique identifier, such as `backend-architecture`.                             |
-| `title`     | Human-readable title.                                                                   |
-| `summary`   | Short explanation shown in lists and retrieval results.                                 |
-| `type`      | Category of knowledge.                                                                  |
+| Field       | Purpose                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------ |
+| `slug`      | Globally unique identifier, such as `backend-architecture`.                                |
+| `title`     | Human-readable title.                                                                      |
+| `summary`   | Short explanation shown in lists and retrieval results.                                    |
+| `type`      | Category of knowledge.                                                                     |
 | `status`    | `active` (retrieved by agents) or `inactive` (hidden from agents; still in the dashboard). |
-| `content`   | Full Markdown content.                                                                  |
-| `scope`     | Optional project and path matching hints.                                               |
-| `version`   | Current version number (integer).                                                       |
-| `createdBy` | Author of the current version (`created_by` on the version row).                        |
+| `content`   | Full Markdown content.                                                                     |
+| `scope`     | Optional project and path matching hints.                                                  |
+| `version`   | Current version number (integer).                                                          |
+| `createdBy` | Author of the current version (`created_by` on the version row).                           |
 
 Supported knowledge types:
 
@@ -153,7 +153,7 @@ A team has three docs in OpenKB:
 1. `api-auth-rules`: a rule scoped to `backend/src/api/**`
 2. `vue-style-guide`: a rule scoped to `frontend/src/**`
 
-If Hermes is editing `backend/src/api/app.ts`, it asks for context via the `openkb_get_context` tool. OpenKB returns the active knowledge items that match the project and the API path. It does not need to return unrelated frontend styling notes.
+If an agent is editing `backend/src/api/app.ts`, it asks for context via the `openkb_get_context` tool. OpenKB returns the active knowledge items that match the project and the API path. It does not need to return unrelated frontend styling notes.
 
 If the agent learns that token revocation has a special rule, it should propose new knowledge or an update via the `openkb_remember` tool. A human reviews it. If approved, OpenKB creates a new canonical knowledge version.
 
@@ -164,7 +164,7 @@ If the agent learns that token revocation has a special rule, it should propose 
 - **Proposal-first workflow**: agents can suggest durable knowledge without silently rewriting team docs.
 - **Scope-aware retrieval**: agents should receive the right context, not every knowledge item.
 - **MCP-first access**: agents should query knowledge dynamically instead of relying on static local files.
-- **Self-hosted first**: Docker Compose and SQLite are the current MVP path.
+- **Self-hosted first**: Docker Compose and SQLite are the primary deployment path.
 
 ## Learn more
 

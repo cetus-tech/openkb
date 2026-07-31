@@ -1,6 +1,6 @@
 # Configuration
 
-OpenKB is configured with environment variables. The current MVP uses SQLite.
+OpenKB is configured with environment variables. By default, OpenKB uses SQLite.
 
 | Variable                 | Default     | Description                      |
 | ------------------------ | ----------- | -------------------------------- |
