@@ -149,7 +149,7 @@ async function handleRegister() {
         }
         const data = await res.json();
         localStorage.setItem('openkb_session', 'active');
-        const roleLabel = data.user.role === 'owner' ? 'admin' : 'member';
+        const roleLabel = data.user.role === 'owner' ? 'owner' : 'member';
         console.log(`Registered as ${email.value} (${roleLabel})`);
         router.push('/dashboard');
     } catch {

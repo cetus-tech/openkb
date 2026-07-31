@@ -429,6 +429,7 @@
                             </n-button>
                         </div>
                         <n-button
+                            v-if="session.isAdmin"
                             type="primary"
                             class="w-full"
                             :loading="approving"
@@ -444,6 +445,7 @@
                         v-else
                         class="mt-3 flex flex-wrap gap-2">
                         <n-button
+                            v-if="session.isAdmin"
                             type="error"
                             ghost
                             :loading="rejecting"
@@ -464,6 +466,7 @@
                             {{ i18n.t('common.edit') }}
                         </n-button>
                         <n-button
+                            v-if="session.isAdmin"
                             type="primary"
                             :loading="approving"
                             :disabled="rejecting"
@@ -504,7 +507,7 @@
                             {{ i18n.t('proposals.openActive') }}
                         </n-button>
                         <n-button
-                            v-else-if="proposal.status === 'rejected'"
+                            v-if="session.isAdmin && proposal.status === 'rejected'"
                             type="primary"
                             secondary
                             :loading="reinstating"
@@ -533,12 +536,14 @@ import {
     type Proposal,
 } from '@/utils/api';
 import { useI18nStore } from '@/stores/i18n';
+import { useSessionStore } from '@/stores/session';
 
 const route = useRoute();
 const router = useRouter();
 const message = useMessage();
 const dialog = useDialog();
 const i18n = useI18nStore();
+const session = useSessionStore();
 
 const loading = ref(true);
 const error = ref('');
@@ -842,5 +847,8 @@ function handleReinstate() {
     });
 }
 
-onMounted(fetchProposal);
+onMounted(() => {
+    void session.loadSession();
+    fetchProposal();
+});
 </script>

@@ -12,7 +12,7 @@
           <template #icon><div class="i-tabler-refresh" /></template>
           {{ i18n.t('common.refresh') }}
         </n-button>
-        <n-button type="primary" @click="router.push({ path: '/dashboard/knowledge', query: { create: 'true' } })">
+        <n-button v-if="session.isAdmin" type="primary" @click="router.push({ path: '/dashboard/knowledge', query: { create: 'true' } })">
           <template #icon><div class="i-tabler-plus" /></template>
           {{ i18n.t('dashboard.addKnowledge') }}
         </n-button>
@@ -151,7 +151,7 @@
           />
           <n-empty v-else description="No active knowledge items" class="py-8">
             <template #extra>
-              <n-button type="primary" size="small" @click="router.push({ path: '/dashboard/knowledge', query: { create: 'true' } })">
+              <n-button v-if="session.isAdmin" type="primary" size="small" @click="router.push({ path: '/dashboard/knowledge', query: { create: 'true' } })">
                 {{ i18n.t('dashboard.addKnowledge') }}
               </n-button>
             </template>
@@ -201,9 +201,11 @@ import { useRouter } from 'vue-router'
 import { NTag, type DataTableColumns } from 'naive-ui'
 import { apiFetch, relativeTime, scopeLabel, type Agent, type Knowledge, type KnowledgePage, type Proposal, type ProposalPage } from '@/utils/api'
 import { useI18nStore } from '@/stores/i18n'
+import { useSessionStore } from '@/stores/session'
 
 const router = useRouter()
 const i18n = useI18nStore()
+const session = useSessionStore()
 const loading = ref(true)
 const hasLoaded = ref(false)
 const error = ref('')
@@ -439,5 +441,8 @@ async function fetchDashboard() {
   loading.value = false
 }
 
-onMounted(fetchDashboard)
+onMounted(() => {
+  void session.loadSession()
+  fetchDashboard()
+})
 </script>

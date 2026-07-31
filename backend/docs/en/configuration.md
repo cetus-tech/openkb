@@ -16,10 +16,10 @@ For Docker, the compose file sets `OPENKB_HOST=0.0.0.0` and stores the database 
 
 OpenKB keeps browser authentication and MCP tokens separate:
 
-- Users have `email`, display `name`, and `role` (`owner` or `member`). Manage accounts in **Users** (owners create/delete accounts and change roles).
+- Users have `email`, display `name`, and `role` (`owner`, `admin`, or `member`). Owners and admins share the admin surface; owner additionally manages owner roles. Manage accounts in **Users**.
 - User sign-in and registration create a 30-day browser session in an HttpOnly cookie. The session hash is stored in `user_sessions`.
 - MCP/API tokens are created explicitly from **Settings → MCP tokens** or `POST /auth/tokens` (not on login).
-- Each token carries an MCP permission level (`read`, `propose`, or `write`; default `propose`). The owner may set any level; members are limited to `read`/`propose`. Admin permissions are managed via the web dashboard. The token's level gates the MCP tool surface; agent names are identity labels only and never change permissions.
+- Each token carries an MCP permission level (`read`, `propose`, or `write`; default `propose`). Owners and admins may set any level; members are limited to `read`/`propose`. Admin permissions are managed via the web dashboard. The token's level gates the MCP tool surface; agent names are identity labels only and never change permissions.
 - Full secrets live in `api_tokens.token_value`. Auth matches the bearer string to that column. Tokens can be listed, renamed, copied, and revoked in Settings.
 - Signing out removes the browser session but does not revoke MCP/API tokens. Revoke those explicitly from Settings or `DELETE /auth/tokens/:id`.
 - `OPENKB_TOKEN` is an environment variable used by the MCP client. It is not a server-side database setting.
@@ -28,10 +28,11 @@ OpenKB keeps browser authentication and MCP tokens separate:
 
 Every `/v1/*` endpoint requires an authenticated session or bearer token. Beyond that, routes are split by the user's role:
 
-- **Any authenticated user (owner or member)** can read knowledge, search, fetch context, create proposals, and edit open proposal content.
-- **Owner only** can create/delete knowledge, delete knowledge versions, decide proposal status (approve/reject/reinstate), delete proposals, manage agents (create, change permission, delete), and read/write app settings.
+- **Any authenticated user** can read knowledge, search, fetch context, create proposals, and edit open proposal content.
+- **Owner or admin** can create/delete knowledge, delete knowledge versions, decide proposal status (approve/reject/reinstate), delete proposals, manage agents (create, delete), and read/write app settings.
+- **Owner only** manages user accounts and owner roles (create/delete users, change roles, create owners).
 
-Members are read + propose users; direct knowledge writes and review decisions require the owner role. The same rules apply whether the request uses a browser session or a bearer token. (REST authorization uses the user role; MCP tool authorization uses the token permission level. See the MCP integration docs.)
+Members are read + propose users; direct knowledge writes and review decisions require owner/admin. The same rules apply whether the request uses a browser session or a bearer token. (REST authorization uses the user role; MCP tool authorization uses the token permission level. See the MCP integration docs.)
 
 ## Public deployments
 

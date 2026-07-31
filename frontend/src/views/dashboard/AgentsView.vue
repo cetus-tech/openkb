@@ -26,6 +26,7 @@
                         {{ i18n.t('common.refresh') }}
                     </n-button>
                     <n-button
+                        v-if="session.isAdmin"
                         type="primary"
                         @click="showAddModal = true">
                         <template #icon><div class="i-tabler-plus" /></template>
@@ -71,6 +72,7 @@
             description="No MCP agents registered">
             <template #extra>
                 <n-button
+                    v-if="session.isAdmin"
                     type="primary"
                     @click="showAddModal = true">
                     <template #icon><div class="i-tabler-plus" /></template>
@@ -127,9 +129,11 @@ import {
 } from 'naive-ui';
 import { apiFetch, relativeTime, type Agent } from '@/utils/api';
 import { useI18nStore } from '@/stores/i18n';
+import { useSessionStore } from '@/stores/session';
 
 const loading = ref(true);
 const i18n = useI18nStore();
+const session = useSessionStore();
 const error = ref('');
 const agents = ref<Agent[]>([]);
 const message = useMessage();
@@ -281,6 +285,7 @@ const agentColumns = computed<DataTableColumns<Agent>>(() => [
         align: 'right',
         width: 100,
         render(row) {
+            if (!session.isAdmin) return null;
             return h(
                 NButton,
                 {
@@ -358,5 +363,8 @@ function deleteAgent(agent: Agent) {
     });
 }
 
-onMounted(fetchAgents);
+onMounted(() => {
+    void session.loadSession();
+    fetchAgents();
+});
 </script>

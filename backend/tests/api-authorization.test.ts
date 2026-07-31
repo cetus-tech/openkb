@@ -44,12 +44,39 @@ async function testApp() {
     return String((res.json().token as { value: string }).value)
   }
 
+  async function login(email: string) {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email, password: 'secret123' },
+    })
+    expect(res.statusCode).toBe(201)
+    const setCookie = res.headers['set-cookie']
+    const cookie = String(Array.isArray(setCookie) ? setCookie[0] : setCookie).split(';', 1)[0]
+    return { cookie, headers: { cookie } }
+  }
+
+  async function createUserAs(cookie: string, email: string, role: string) {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/users',
+      headers: { cookie },
+      payload: { email, password: 'secret123', role },
+    })
+    expect(res.statusCode).toBe(201)
+    return res.json().user as { id: number; email: string; role: string }
+  }
+
   const owner = await register('owner@test.com')
   const member = await register('member@test.com')
   expect(member.user.role).toBe('member')
+  await createUserAs(owner.cookie, 'admin@test.com', 'admin')
+  const admin = await login('admin@test.com')
+  expect(admin).toBeTruthy()
   const ownerToken = await createToken(owner.cookie)
   const memberToken = await createToken(member.cookie)
-  return { app, db, dir, owner, member, ownerToken, memberToken }
+  const adminToken = await createToken(admin.cookie)
+  return { app, db, dir, owner, member, admin, ownerToken, memberToken, adminToken }
 }
 
 describe('v1 authorization', () => {
@@ -302,6 +329,134 @@ describe('v1 authorization', () => {
         payload: { name: 'bad', permissionLevel: 'superuser' },
       })
       expect(invalidLevel.statusCode).toBe(400)
+    } finally {
+      await db.destroy()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('admin users share the admin surface (knowledge, proposals, agents, settings)', async () => {
+    const { app, db, dir, owner, admin } = await testApp()
+    try {
+      const write = await app.inject({
+        method: 'POST',
+        url: '/v1/knowledge',
+        headers: admin.headers,
+        payload: { slug: 'admin-doc', title: 'A', summary: 'A', content: 'A' },
+      })
+      expect(write.statusCode).toBe(201)
+
+      const propose = await app.inject({
+        method: 'POST',
+        url: '/v1/proposals',
+        headers: admin.headers,
+        payload: { title: 'P', summary: 'S', content: 'C' },
+      })
+      const proposalId = propose.json().proposal.id
+      const approve = await app.inject({
+        method: 'PATCH',
+        url: `/v1/proposals/${proposalId}`,
+        headers: admin.headers,
+        payload: { status: 'approved' },
+      })
+      expect(approve.statusCode).toBe(200)
+
+      const agent = await app.inject({
+        method: 'POST',
+        url: '/v1/agents',
+        headers: admin.headers,
+        payload: { name: 'admin-created-agent' },
+      })
+      expect(agent.statusCode).toBe(201)
+
+      const setting = await app.inject({
+        method: 'PUT',
+        url: '/v1/settings/any_key',
+        headers: admin.headers,
+        payload: { value: 'x' },
+      })
+      expect(setting.statusCode).toBe(200)
+
+      const del = await app.inject({ method: 'DELETE', url: '/v1/knowledge/admin-doc', headers: admin.headers })
+      expect(del.statusCode).toBe(204)
+
+      // Admin can also mint write tokens.
+      const writeToken = await app.inject({
+        method: 'POST',
+        url: '/auth/tokens',
+        headers: admin.headers,
+        payload: { name: 'admin-write', permissionLevel: 'write' },
+      })
+      expect(writeToken.statusCode).toBe(201)
+      expect(writeToken.json().token.permissionLevel).toBe('write')
+    } finally {
+      await db.destroy()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('restricts owner-role management to the owner', async () => {
+    const { app, db, dir, owner, admin, member } = await testApp()
+    try {
+      // Admin can create member users but not owners.
+      const createMember = await app.inject({
+        method: 'POST',
+        url: '/v1/users',
+        headers: admin.headers,
+        payload: { email: 'm2@test.com', password: 'secret123', role: 'member' },
+      })
+      expect(createMember.statusCode).toBe(201)
+
+      const createOwner = await app.inject({
+        method: 'POST',
+        url: '/v1/users',
+        headers: admin.headers,
+        payload: { email: 'o2@test.com', password: 'secret123', role: 'owner' },
+      })
+      expect(createOwner.statusCode).toBe(403)
+
+      // Admin can promote a member to admin, but not to owner.
+      const promote = await app.inject({
+        method: 'PATCH',
+        url: `/v1/users/${member.user.id}`,
+        headers: admin.headers,
+        payload: { role: 'admin' },
+      })
+      expect(promote.statusCode).toBe(200)
+      expect(promote.json().user.role).toBe('admin')
+
+      const promoteToOwner = await app.inject({
+        method: 'PATCH',
+        url: `/v1/users/${member.user.id}`,
+        headers: admin.headers,
+        payload: { role: 'owner' },
+      })
+      expect(promoteToOwner.statusCode).toBe(403)
+
+      // Admin cannot delete an owner.
+      const delOwner = await app.inject({ method: 'DELETE', url: `/v1/users/${owner.user.id}`, headers: admin.headers })
+      expect(delOwner.statusCode).toBe(403)
+
+      // Admin cannot edit an owner's name or password either.
+      const editOwnerName = await app.inject({
+        method: 'PATCH',
+        url: `/v1/users/${owner.user.id}`,
+        headers: admin.headers,
+        payload: { name: 'Hijacked' },
+      })
+      expect(editOwnerName.statusCode).toBe(403)
+
+      const editOwnerPassword = await app.inject({
+        method: 'PATCH',
+        url: `/v1/users/${owner.user.id}`,
+        headers: admin.headers,
+        payload: { password: 'secret456' },
+      })
+      expect(editOwnerPassword.statusCode).toBe(403)
+
+      // Owner can delete the admin they created.
+      const delAdmin = await app.inject({ method: 'DELETE', url: `/v1/users/${member.user.id}`, headers: owner.headers })
+      expect(delAdmin.statusCode).toBe(204)
     } finally {
       await db.destroy()
       await rm(dir, { recursive: true, force: true })

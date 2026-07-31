@@ -66,7 +66,7 @@
                     Create one </router-link
                 >.
             </p>
-            <p>The first account becomes the admin automatically.</p>
+            <p>The first account becomes the owner automatically.</p>
         </n-p>
     </div>
 </template>

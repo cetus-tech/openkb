@@ -12,7 +12,7 @@
           <template #icon><div class="i-tabler-refresh" /></template>
           {{ i18n.t('common.refresh') }}
         </n-button>
-        <n-button v-if="isOwner" type="primary" @click="openCreate">
+        <n-button v-if="isAdmin" type="primary" @click="openCreate">
           <template #icon><div class="i-tabler-user-plus" /></template>
           {{ i18n.t('users.addUser') }}
         </n-button>
@@ -23,7 +23,7 @@
       {{ error }}
     </n-alert>
 
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <n-card v-for="stat in stats" :key="stat.label" size="small" :bordered="true">
         <n-statistic :label="stat.label" :value="stat.value" />
       </n-card>
@@ -129,22 +129,37 @@ const savingName = ref(false)
 const nameTarget = ref<DashboardUser | null>(null)
 const nameForm = reactive({ name: '' })
 
-const roleOptions = computed<SelectOption[]>(() => [
-  { label: i18n.t('users.member'), value: 'member' },
-  { label: i18n.t('users.admin'), value: 'owner' },
-])
+const roleOptions = computed<SelectOption[]>(() => {
+  const options: SelectOption[] = [
+    { label: i18n.t('users.member'), value: 'member' },
+    { label: i18n.t('users.admin'), value: 'admin' },
+  ]
+  if (currentUserRole.value === 'owner') {
+    options.push({ label: i18n.t('users.owner'), value: 'owner' })
+  }
+  return options
+})
 
 const isOwner = computed(() => currentUserRole.value === 'owner')
+const isAdmin = computed(() => currentUserRole.value === 'owner' || currentUserRole.value === 'admin')
+
+function roleLabel(role: string): string {
+  if (role === 'owner') return i18n.t('users.owner')
+  if (role === 'admin') return i18n.t('users.admin')
+  return i18n.t('users.member')
+}
 
 const stats = computed(() => [
   { label: i18n.t('users.statTotalUsers'), value: users.value.length },
   { label: i18n.t('users.statOwners'), value: users.value.filter((u) => u.role === 'owner').length },
+  { label: i18n.t('users.statAdmins'), value: users.value.filter((u) => u.role === 'admin').length },
   { label: i18n.t('users.statMembers'), value: users.value.filter((u) => u.role === 'member').length },
 ])
 
 function roleType(role: string): 'default' | 'info' | 'success' | 'warning' | 'error' {
   if (role === 'owner') return 'error'
-  return 'info'
+  if (role === 'admin') return 'warning'
+  return 'default'
 }
 
 const columns = computed<DataTableColumns<DashboardUser>>(() => {
@@ -172,9 +187,11 @@ const columns = computed<DataTableColumns<DashboardUser>>(() => {
       key: 'role',
       width: 160,
       render: (row) => {
-        if (!isOwner.value || row.id === currentUserId.value) {
-          const roleLabel = row.role === 'owner' ? i18n.t('users.admin') : i18n.t('users.member')
-          return h(NTag, { size: 'small', type: roleType(row.role), bordered: false }, { default: () => roleLabel })
+        const canEditRole =
+          row.id !== currentUserId.value &&
+          (isOwner.value || (isAdmin.value && row.role !== 'owner'))
+        if (!canEditRole) {
+          return h(NTag, { size: 'small', type: roleType(row.role), bordered: false }, { default: () => roleLabel(row.role) })
         }
         return h(NSelect, {
           value: row.role,
@@ -196,9 +213,15 @@ const columns = computed<DataTableColumns<DashboardUser>>(() => {
   cols.push({
     title: i18n.t('common.actions'),
     key: 'actions',
-    width: isOwner.value ? 220 : 100,
+    width: isAdmin.value ? 220 : 100,
     render: (row) => {
-      const canEdit = isOwner.value || row.id === currentUserId.value
+      const canEdit =
+        row.id === currentUserId.value ||
+        (isAdmin.value && (isOwner.value || row.role !== 'owner'))
+      const canDelete =
+        isAdmin.value &&
+        row.id !== currentUserId.value &&
+        (isOwner.value || row.role !== 'owner')
       return h('div', { class: 'flex gap-1' }, [
         canEdit
           ? h(
@@ -212,7 +235,7 @@ const columns = computed<DataTableColumns<DashboardUser>>(() => {
               { default: () => i18n.t('common.edit'), icon: () => h('div', { class: 'i-tabler-user' }) },
             )
           : null,
-        isOwner.value
+        isAdmin.value
           ? h(
               NButton,
               {
@@ -224,7 +247,7 @@ const columns = computed<DataTableColumns<DashboardUser>>(() => {
               { default: () => i18n.t('settings.changePassword'), icon: () => h('div', { class: 'i-tabler-key' }) },
             )
           : null,
-        isOwner.value && row.id !== currentUserId.value
+        canDelete
           ? h(
               NButton,
               {

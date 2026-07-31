@@ -95,7 +95,12 @@ export interface AuthToken {
   permissionLevel: AgentPermission
 }
 
-export type UserRole = 'owner' | 'member'
+export type UserRole = 'owner' | 'admin' | 'member'
+
+/** Owner implies admin; both may use the admin surface (knowledge writes, proposal review, agents, settings). */
+export function isAdminRole(role: string | null | undefined): role is 'owner' | 'admin' {
+  return role === 'owner' || role === 'admin'
+}
 
 export interface AuthContext {
   method: 'token' | 'session'
@@ -310,7 +315,7 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
       return reply.badRequest('permissionLevel must be one of: read, propose, write')
     }
     // MCP permission lives on the token; members cannot mint write credentials.
-    if (user.role !== 'owner' && permissionLevel === 'write') {
+    if (!isAdminRole(user.role) && permissionLevel === 'write') {
       return reply.forbidden('Members can only create tokens with read or propose permission')
     }
     const plain = generateToken()
@@ -376,7 +381,7 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
       if (!['read', 'propose', 'write'].includes(permissionLevel)) {
         return reply.badRequest('permissionLevel must be one of: read, propose, write')
       }
-      if (user.role !== 'owner' && permissionLevel === 'write') {
+      if (!isAdminRole(user.role) && permissionLevel === 'write') {
         return reply.forbidden('Members can only assign read or propose permission to tokens')
       }
       updates.permission_level = permissionLevel
@@ -403,7 +408,7 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
     return reply.code(204).send()
   })
 
-  // Register a new user account. First user ever becomes owner (admin).
+  // Register a new user account. First user ever becomes owner; later sign-ups are members.
   app.post('/auth/register', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { email?: string; password?: string; name?: string }
     if (!body.email || !body.password) return reply.badRequest('email and password are required')
@@ -463,11 +468,11 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
     return auth
   }
 
-  async function requireOwner(request: FastifyRequest, reply: FastifyReply) {
+  async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
     const auth = await requireSignedInUser(request, reply)
     if (!auth) return undefined
-    if (auth.user.role !== 'owner') {
-      reply.forbidden('Owner role required')
+    if (!isAdminRole(auth.user.role)) {
+      reply.forbidden('Admin role required')
       return undefined
     }
     return auth
@@ -496,15 +501,19 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
     }
   })
 
-  // Create a user account (owner only). Does not start a session for the new user.
+  // Create a user account (admin+; only the owner may create owner accounts).
+  // Does not start a session for the new user.
   app.post('/v1/users', async (request: FastifyRequest, reply: FastifyReply) => {
-    const auth = await requireOwner(request, reply)
+    const auth = await requireAdmin(request, reply)
     if (!auth) return
     const body = request.body as { email?: string; password?: string; role?: string; name?: string }
     const email = String(body.email ?? '').trim().toLowerCase()
     const password = String(body.password ?? '')
     const name = String(body.name ?? '').trim() || displayNameFromEmail(email)
-    const role = body.role === 'owner' ? 'owner' : 'member'
+    const role = (['owner', 'admin', 'member'].includes(body.role ?? '') ? body.role : 'member') as UserRole
+    if (role === 'owner' && auth.user.role !== 'owner') {
+      return reply.forbidden('Only the owner can create owner accounts')
+    }
     if (!email || !password) return reply.badRequest('email and password are required')
     if (password.length < 6) return reply.badRequest('password must be at least 6 characters')
     const existing = await db<UserRow>('users').where({ email }).first()
@@ -537,10 +546,12 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
     const body = request.body as { role?: string; password?: string; name?: string }
     const updates: Partial<UserRow> = { updated_at: now() }
     const isSelf = auth.user.id === targetId
-    const isOwner = auth.user.role === 'owner'
+    const isAdmin = isAdminRole(auth.user.role)
+    // Admins manage non-owner accounts; owner accounts are self-or-owner only.
+    const canEditAccount = isSelf || (isAdmin && (auth.user.role === 'owner' || target.role !== 'owner'))
 
     if (body.name !== undefined) {
-      if (!isSelf && !isOwner) return reply.forbidden('Cannot change another user\'s name')
+      if (!canEditAccount) return reply.forbidden('Cannot change another user\'s name')
       const name = String(body.name).trim()
       if (!name) return reply.badRequest('name cannot be empty')
       if (name.length > 120) return reply.badRequest('name must be at most 120 characters')
@@ -548,8 +559,14 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
     }
 
     if (body.role !== undefined) {
-      if (!isOwner) return reply.forbidden('Owner role required to change roles')
-      if (body.role !== 'owner' && body.role !== 'member') return reply.badRequest('role must be "owner" or "member"')
+      if (!isAdmin) return reply.forbidden('Admin role required to change roles')
+      if (!['owner', 'admin', 'member'].includes(body.role)) {
+        return reply.badRequest('role must be "owner", "admin", or "member"')
+      }
+      // Admins manage admin/member roles; only the owner manages owner roles.
+      if (auth.user.role !== 'owner' && (target.role === 'owner' || body.role === 'owner')) {
+        return reply.forbidden('Only the owner can manage owner roles')
+      }
       if (target.role === 'owner' && body.role !== 'owner') {
         const owners = Number((await db<UserRow>('users').where({ role: 'owner' }).count('id as count').first() as { count?: number | string })?.count ?? 0)
         if (owners <= 1) return reply.badRequest('Cannot demote the last owner')
@@ -558,7 +575,7 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
     }
 
     if (body.password !== undefined) {
-      if (!isSelf && !isOwner) return reply.forbidden('Cannot change another user\'s password')
+      if (!canEditAccount) return reply.forbidden('Cannot change another user\'s password')
       const password = String(body.password)
       if (password.length < 6) return reply.badRequest('password must be at least 6 characters')
       const salt = randomBytes(16).toString('hex')
@@ -574,9 +591,9 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
 
   // Toggle signup enabled (Removed: now managed via docker environment)
 
-  // Delete a user (owner only).
+  // Delete a user (admin+; owners can only be deleted by the owner).
   app.delete('/v1/users/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    const auth = await requireOwner(request, reply)
+    const auth = await requireAdmin(request, reply)
     if (!auth) return
     const params = request.params as { id: string }
     const targetId = Number(params.id)
@@ -585,6 +602,7 @@ export function registerAuthRoutes(app: ReturnType<typeof Fastify>, db: Knex) {
     const target = await db<UserRow>('users').where({ id: targetId }).first()
     if (!target) return reply.notFound('User not found')
     if (target.role === 'owner') {
+      if (auth.user.role !== 'owner') return reply.forbidden('Only the owner can delete owner accounts')
       const owners = Number((await db<UserRow>('users').where({ role: 'owner' }).count('id as count').first() as { count?: number | string })?.count ?? 0)
       if (owners <= 1) return reply.badRequest('Cannot delete the last owner')
     }

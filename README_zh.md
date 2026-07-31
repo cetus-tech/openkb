@@ -70,4 +70,4 @@ http://localhost:6800/mcp
 3. 当需要在会话间持久化保存新发现时，调用 `openkb_remember`。
 4. 在 Web 门户中审核并批准提案。
 
-新创建的已认证 Agent 可以提交知识提案。owner 可在 **设置 → 令牌 (Settings → Tokens)** 中按令牌授予直接写入权限（member 仅限 `propose`）；Agent 声明自己的名称不会改变权限。
+新创建的已认证 Agent 可以提交知识提案。owner 和 admin 可在 **设置 → 令牌 (Settings → Tokens)** 中按令牌授予直接写入权限（member 仅限 `propose`）；Agent 声明自己的名称不会改变权限。

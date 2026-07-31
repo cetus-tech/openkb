@@ -52,6 +52,7 @@ describe('api app', () => {
       'integrations/antigravity',
       'concepts/overview',
       'concepts/knowledge-lifecycle',
+      'concepts/permissions',
       'introduction/project-structure',
       'development/contributing',
       'development/database',

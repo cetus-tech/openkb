@@ -143,14 +143,14 @@ const dialog = useDialog();
 const i18n = useI18nStore();
 const tokenName = ref('');
 const newTokenPermission = ref('propose');
-const currentRole = ref<'owner' | 'member'>('member');
+const currentRole = ref<'owner' | 'admin' | 'member'>('member');
 const allPermissionOptions = [
     { label: 'Read only', value: 'read' },
     { label: 'Propose changes', value: 'propose' },
     { label: 'Write access', value: 'write' },
 ];
 const availablePermissionOptions = computed(() =>
-    currentRole.value === 'owner'
+    currentRole.value === 'owner' || currentRole.value === 'admin'
         ? allPermissionOptions
         : allPermissionOptions.filter((option) => option.value === 'read' || option.value === 'propose'),
 );
@@ -525,7 +525,7 @@ onMounted(async () => {
     await fetchTokens();
     try {
         const session = await apiFetch<{ user: { role?: string } }>('/auth/session');
-        if (session.user?.role === 'owner' || session.user?.role === 'member') {
+        if (session.user?.role === 'owner' || session.user?.role === 'admin' || session.user?.role === 'member') {
             currentRole.value = session.user.role;
         }
     } catch {

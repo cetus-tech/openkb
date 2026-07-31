@@ -68,7 +68,7 @@ X-OpenKB-Agent: codex
 
 对于无法发送自定义 HTTP 请求头的客户端，请在每个 OpenKB 工具调用的 `arguments` 对象中传递 `agentName`。如果客户端还允许自定义初始的 `tools/list` 请求，请在它的 `params` 中包含相同的字段，以便能立即公布特定权限的工具。这些可选字段已包含在工具 Schema 中。`AGENTS.md` 仅是告诉 Agent 调用 OpenKB 的指令，它不是身份注册机制。
 
-使用新 Agent 名称发起的第一次认证请求会在 **Agent (Agents)** 中自动将其注册为身份标签。OpenKB 还会记录该 Agent 使用的最后一个 MCP 令牌（显示在 Agent 页面上）。工具权限是 **Bearer 令牌** 的属性，与名称无关：owner 可在 **设置 → 令牌 (Settings → Tokens)** 中设置令牌等级（`read`、`propose` 或 `write`），member 只能创建 `read`/`propose` 令牌。管理员权限通过 Web 控制台管理。声明任何 Agent 名称，即使是已存在的名称，也永远不会改变令牌所授予的工具。
+使用新 Agent 名称发起的第一次认证请求会在 **Agent (Agents)** 中自动将其注册为身份标签。OpenKB 还会记录该 Agent 使用的最后一个 MCP 令牌（显示在 Agent 页面上）。工具权限是 **Bearer 令牌** 的属性，与名称无关：owner 和 admin 可在 **设置 → 令牌 (Settings → Tokens)** 中设置令牌等级（`read`、`propose` 或 `write`），member 只能创建 `read`/`propose` 令牌。管理员权限通过 Web 控制台管理。声明任何 Agent 名称，即使是已存在的名称，也永远不会改变令牌所授予的工具。
 
 使用稳定的 Agent 名称，使 Agent 页面每个客户端只显示一个身份；当某个客户端需要不同权限时，请为其创建单独的令牌。例如，日常使用一个 `propose` 令牌，为受信任的 CI 身份单独创建一个 `write` 令牌。
 

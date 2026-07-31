@@ -100,9 +100,12 @@ describe('ProposalsView', () => {
     });
 
     it('shows an authentication error when no browser session is available', async () => {
-        mockFetch.mockResolvedValueOnce(
-            jsonResponse({ message: 'Not authenticated' }, false, 401),
-        );
+        mockFetch.mockImplementation((url: string | URL) => {
+            if (String(url).includes('/auth/session')) {
+                return Promise.resolve(jsonResponse({ user: { role: 'owner' } }));
+            }
+            return Promise.resolve(jsonResponse({ message: 'Not authenticated' }, false, 401));
+        });
         const wrapper = factory();
         await new Promise((r) => setTimeout(r, 10));
         expect(wrapper.text()).toContain('Not authenticated');
@@ -110,16 +113,18 @@ describe('ProposalsView', () => {
 
     it('shows empty state when no proposals with token', async () => {
         localStorage.setItem('openkb_token', 'test-token');
-        mockFetch.mockResolvedValueOnce(
-            jsonResponse({
+        mockFetch
+            .mockResolvedValueOnce(jsonResponse({ user: { role: 'owner' } }))
+            .mockResolvedValueOnce(
+                jsonResponse({
                 proposals: [],
                 total: 0,
                 page: 1,
                 pageSize: 20,
                 totalPages: 1,
                 counts: { all: 0, open: 0, approved: 0, rejected: 0 },
-            }),
-        );
+                }),
+            );
 
         const wrapper = factory();
         await new Promise((r) => setTimeout(r, 10));
@@ -130,16 +135,18 @@ describe('ProposalsView', () => {
 
     it('renders open proposals from the paginated API', async () => {
         localStorage.setItem('openkb_token', 'test-token');
-        mockFetch.mockResolvedValueOnce(
-            jsonResponse({
+        mockFetch
+            .mockResolvedValueOnce(jsonResponse({ user: { role: 'owner' } }))
+            .mockResolvedValueOnce(
+                jsonResponse({
                 proposals: [makeProposal(1)],
                 total: 1,
                 page: 1,
                 pageSize: 20,
                 totalPages: 1,
                 counts: { all: 2, open: 1, approved: 1, rejected: 0 },
-            }),
-        );
+                }),
+            );
 
         const wrapper = factory();
         await new Promise((r) => setTimeout(r, 30));
@@ -149,13 +156,15 @@ describe('ProposalsView', () => {
 
     it('shows error on API failure', async () => {
         localStorage.setItem('openkb_token', 'test-token');
-        mockFetch.mockResolvedValueOnce({
-            ok: false,
-            status: 403,
-            statusText: 'Forbidden',
-            text: async () => '',
-            json: async () => ({}),
-        });
+        mockFetch
+            .mockResolvedValueOnce(jsonResponse({ user: { role: 'owner' } }))
+            .mockResolvedValueOnce({
+                ok: false,
+                status: 403,
+                statusText: 'Forbidden',
+                text: async () => '',
+                json: async () => ({}),
+            });
 
         const wrapper = factory();
         await new Promise((r) => setTimeout(r, 10));
@@ -168,16 +177,18 @@ describe('ProposalsView', () => {
             status: 'rejected',
             title: 'Rejected Item',
         });
-        mockFetch.mockResolvedValueOnce(
-            jsonResponse({
+        mockFetch
+            .mockResolvedValueOnce(jsonResponse({ user: { role: 'owner' } }))
+            .mockResolvedValueOnce(
+                jsonResponse({
                 proposals: [rejectedProp],
                 total: 1,
                 page: 1,
                 pageSize: 20,
                 totalPages: 1,
                 counts: { all: 1, open: 0, approved: 0, rejected: 1 },
-            }),
-        );
+                }),
+            );
 
         const wrapper = factory();
         await new Promise((r) => setTimeout(r, 30));

@@ -33,11 +33,11 @@
         <p v-if="knowledge" class="mt-1 truncate font-mono text-xs text-gray-500 dark:text-dark-400">{{ knowledge.slug }}</p>
       </div>
       <div v-if="knowledge" class="flex flex-wrap gap-2">
-        <n-button type="primary" @click="startEdit">
+        <n-button v-if="session.isAdmin" type="primary" @click="startEdit">
           <template #icon><div class="i-tabler-edit" /></template>
           {{ editButtonLabel }}
         </n-button>
-        <n-button quaternary type="error" @click="deleteKnowledge">
+        <n-button v-if="session.isAdmin" quaternary type="error" @click="deleteKnowledge">
           <template #icon><div class="i-tabler-trash" /></template>
           {{ i18n.t('common.delete') }}
         </n-button>
@@ -87,6 +87,7 @@
                 </div>
               </div>
               <n-button
+                v-if="session.isAdmin"
                 class="shrink-0"
                 size="small"
                 quaternary
@@ -131,6 +132,7 @@ import { useRoute, useRouter } from 'vue-router'
 import VersionTimeline from './components/knowledge/VersionTimeline.vue'
 import KnowledgeEditWorkspace from './components/knowledge/KnowledgeEditWorkspace.vue'
 import MarkdownPane from './components/knowledge/MarkdownPane.vue'
+import { useSessionStore } from '@/stores/session'
 import {
   apiFetch,
   relativeTime,
@@ -153,6 +155,7 @@ const router = useRouter()
 const message = useMessage()
 const dialog = useDialog()
 const i18n = useI18nStore()
+const session = useSessionStore()
 
 const loading = ref(true)
 const historyLoading = ref(false)
@@ -331,5 +334,8 @@ watch(
   },
 )
 
-onMounted(() => fetchHistory(1))
+onMounted(() => {
+  void session.loadSession()
+  fetchHistory(1)
+})
 </script>
