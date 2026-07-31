@@ -73,10 +73,7 @@
             v-if="isEditing"
             type="warning"
             :bordered="false">
-            Edit Mode — tweak the to-be-approved fields (type, title, summary,
-            content) on the right panel while comparing with the original
-            proposed version on the left. Save edits in-place to resume later or
-            approve immediately.
+            {{ i18n.t('proposals.editNotice') }}
         </n-alert>
 
         <n-spin
@@ -94,8 +91,8 @@
                     :bordered="false">
                     {{
                         proposal.knowledgeId
-                            ? `Approval writes the next active version of ${proposal.slug}. Rejection leaves knowledge unchanged.`
-                            : `Approval creates active knowledge at ${proposal.slug}. Rejection leaves the queue item in history only.`
+                            ? i18n.t('proposals.noticeUpdate').replace('{slug}', proposal.slug)
+                            : i18n.t('proposals.noticeCreate').replace('{slug}', proposal.slug)
                     }}
                 </n-alert>
 
@@ -413,6 +410,9 @@
                                 class="flex-1"
                                 :disabled="savingEdits || approving"
                                 @click="cancelEditing">
+                                <template #icon>
+                                    <div class="i-tabler-x" />
+                                </template>
                                 {{ i18n.t('common.cancel') }}
                             </n-button>
                             <n-button
@@ -422,6 +422,9 @@
                                 :loading="savingEdits"
                                 :disabled="approving"
                                 @click="handleSaveEdits">
+                                <template #icon>
+                                    <div class="i-tabler-device-floppy" />
+                                </template>
                                 {{ i18n.t('proposals.saveEdits') }}
                             </n-button>
                         </div>
@@ -431,6 +434,9 @@
                             :loading="approving"
                             :disabled="savingEdits"
                             @click="handleSaveAndApprove">
+                            <template #icon>
+                                <div class="i-tabler-check" />
+                            </template>
                             {{ i18n.t('proposals.approveWithEdits') }}
                         </n-button>
                     </div>
@@ -443,6 +449,9 @@
                             :loading="rejecting"
                             :disabled="approving"
                             @click="handleReject">
+                            <template #icon>
+                                <div class="i-tabler-x" />
+                            </template>
                             {{ i18n.t('proposals.reject') }}
                         </n-button>
                         <n-button
@@ -459,6 +468,9 @@
                             :loading="approving"
                             :disabled="rejecting"
                             @click="handleApprove">
+                            <template #icon>
+                                <div class="i-tabler-check" />
+                            </template>
                             {{ i18n.t('proposals.approve') }}
                         </n-button>
                     </div>
@@ -486,7 +498,10 @@
                             type="primary"
                             secondary
                             @click="openKnowledge">
-                            Open knowledge
+                            <template #icon>
+                                <div class="i-tabler-external-link" />
+                            </template>
+                            {{ i18n.t('proposals.openActive') }}
                         </n-button>
                         <n-button
                             v-else-if="proposal.status === 'rejected'"
@@ -494,7 +509,10 @@
                             secondary
                             :loading="reinstating"
                             @click="handleReinstate">
-                            Reinstate
+                            <template #icon>
+                                <div class="i-tabler-rotate-clockwise" />
+                            </template>
+                            {{ i18n.t('proposals.reinstate') }}
                         </n-button>
                     </div>
                 </n-card>

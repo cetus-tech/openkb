@@ -103,6 +103,10 @@ export default {
         viewAll: 'View All',
         copyMcpUrl: 'Copy MCP URL',
         reviewProposals: 'Review proposals',
+        openProposalsNoticeTitle: '{count} open proposal waiting for review',
+        openProposalsNoticeTitlePlural: '{count} open proposals waiting for review',
+        openProposalsNoticeDesc:
+            'Approve useful agent memories so they become active knowledge for the next session.',
     },
     knowledge: {
         title: 'Knowledge Base',
@@ -159,9 +163,22 @@ export default {
         statOpen: 'Open',
         statApproved: 'Approved',
         statRejected: 'Rejected',
-        showAll: 'Show all proposals',
-        openActive: 'Open active knowledge',
-        reinstate: 'Reinstate proposal',
+        showAll: 'Show All Proposals',
+        openActive: 'View Active Knowledge',
+        reinstate: 'Reinstate Proposal',
+        editNotice:
+            'Edit Mode — tweak the to-be-approved fields (type, title, summary, content) on the right panel while comparing with the original proposed version on the left. Save edits in-place to resume later or approve immediately.',
+        noticeCreate:
+            'Approval creates active knowledge at {slug}. Rejection leaves the queue item in history only.',
+        noticeUpdate:
+            'Approval writes the next active version of {slug}. Rejection leaves knowledge unchanged.',
+        filterOpen: 'Open (needs review)',
+        filterAll: 'All statuses',
+        filterApproved: 'Approved',
+        filterRejected: 'Rejected',
+        totalCount: '{count} proposals',
+        noMatchFilter: 'No proposals match this filter',
+        noPendingChanges: 'No agent changes waiting for approval',
     },
     docs: {
         title: 'Documentation',

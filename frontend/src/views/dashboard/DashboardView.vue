@@ -119,10 +119,10 @@
       <n-alert
         v-if="openProposalCount"
         type="warning"
-        :title="`${openProposalCount} open proposal${openProposalCount === 1 ? '' : 's'} waiting for review`"
+        :title="openProposalsAlertTitle"
       >
         <div class="flex flex-wrap items-center justify-between gap-4">
-          <span>Approve useful agent memories so they become active knowledge for the next session.</span>
+          <span>{{ i18n.t('dashboard.openProposalsNoticeDesc') }}</span>
           <n-button type="primary" size="small" @click="router.push('/dashboard/proposals')">
             {{ i18n.t('dashboard.reviewProposals') }}
           </n-button>
@@ -314,6 +314,11 @@ const setupSteps = computed(() => [
     to: '/dashboard/proposals',
   },
 ])
+
+const openProposalsAlertTitle = computed(() => {
+  const key = openProposalCount.value === 1 ? 'dashboard.openProposalsNoticeTitle' : 'dashboard.openProposalsNoticeTitlePlural'
+  return i18n.t(key).replace('{count}', String(openProposalCount.value))
+})
 
 const completedSetupSteps = computed(() => setupSteps.value.filter((step) => step.done).length)
 const showSetupGuide = computed(() => {

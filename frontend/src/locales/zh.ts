@@ -101,6 +101,10 @@ export default {
         viewAll: '查看全部',
         copyMcpUrl: '复制 MCP 地址',
         reviewProposals: '审核提案',
+        openProposalsNoticeTitle: '{count} 个待审核的变更提案',
+        openProposalsNoticeTitlePlural: '{count} 个待审核的变更提案',
+        openProposalsNoticeDesc:
+            '批准有价值的 Agent 记忆，使其成为下一轮会话的有效知识。',
     },
     knowledge: {
         title: '知识库',
@@ -146,9 +150,9 @@ export default {
         review: '提案审核',
         reviewResult: '审核结果',
         saveEdits: '保存修改',
-        approve: '批准通过',
+        approve: '批准',
         approveWithEdits: '批准修改并发布',
-        reject: '拒绝提案',
+        reject: '拒绝',
         rejectionReason: '拒绝原因（可选）',
         statAll: '全部',
         statOpen: '待审核',
@@ -157,6 +161,19 @@ export default {
         showAll: '显示全部提案',
         openActive: '查看有效知识条目',
         reinstate: '重新恢复提案',
+        editNotice:
+            '编辑模式 — 在右侧面板中调整待批准的字段（类型、标题、摘要、内容），左侧可对比原始提案内容。修改可随时保存，也可直接批准通过。',
+        noticeCreate:
+            '批准后将在 {slug} 创建有效知识条目。拒绝提案仅在历史记录中保留此记录。',
+        noticeUpdate:
+            '批准后将为 {slug} 发布下一个有效版本。拒绝提案将保持当前有效知识不变。',
+        filterOpen: '待审核 (需审核)',
+        filterAll: '全部状态',
+        filterApproved: '已批准',
+        filterRejected: '已拒绝',
+        totalCount: '{count} 个变更提案',
+        noMatchFilter: '没有符合筛选条件的变更提案',
+        noPendingChanges: '暂无等待批准的变更提案',
     },
     docs: {
         title: '使用文档',
@@ -197,6 +214,7 @@ export default {
         displayNameFor: '修改用户',
         setNewPasswordFor: '为此用户设置新密码：',
         deleteUserTitle: '删除用户',
-        deleteUserConfirm: '确定要删除用户“{email}”吗？其创建的 MCP 令牌也将一并被删除。',
+        deleteUserConfirm:
+            '确定要删除用户“{email}”吗？其创建的 MCP 令牌也将一并被删除。',
     },
 };
