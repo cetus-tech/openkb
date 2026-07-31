@@ -1,27 +1,24 @@
-# 数据库架构与迁移
+# 数据库
 
-OpenKB 使用 Knex 作为数据库查询构建器与迁移工具，默认采用 SQLite 数据库存储。
+SQLite 是自托管服务器当前的 MVP 数据库。代码库保留了独立的 MySQL 迁移路径以备未来的部署目标使用。每次 Schema 变更都需要同时提供这两种迁移变体。
 
-数据库表包括：
-- `users`: 用户表
-- `api_tokens`: Agent API 令牌表
-- `active_knowledge`: 当前生效的知识条目表
-- `proposals`: 变更提案表
-- `agents`: 注册的 Agent 权限与信息表
-- `app_settings`: 系统设置键值表
+## 基线布局
 
-## 数据库管理工具配置
+- `0001_initial_schema` 是 **当前的完整 Schema**（自增整数 ID；知识状态包含 `active`/`inactive`；用户包含 `name`），并预置了全局 MCP 指令（`openkb-mcp-instructions` v1，作者 `openkb`）。
+- 未来的 Schema 变更请添加按数字编号的新迁移文件（`0002_…` 等）。
 
-你可以在 `docker-compose.yaml` 中添加外部 Web 数据库管理容器，以便可视化查看和管理数据库。
+## 数据库管理工具
 
-### SQLite 可视化管理（使用 `sqlite-web`）
+你可以在 `docker-compose.yaml` 文件中添加外部基于 Web 的数据库管理容器，以可视化方式查看和管理数据表。
 
-在使用默认 SQLite 数据库时，可在 `docker-compose.yaml` 中添加 `sqlite-web` 服务：
+### SQLite（使用 `sqlite-web`）
+
+使用默认 SQLite 引擎时，在 `docker-compose.yaml` 中添加 `sqlite-web` 服务：
 
 ```yaml
 services:
   openkb:
-    # ... (原有 openkb 服务配置)
+    # ... (现有的 openkb 服务配置)
 
   sqlite-web:
     image: coleifer/sqlite-web:latest
@@ -36,18 +33,18 @@ services:
       - openkb
 ```
 
-启动后访问 `http://localhost:6801` 即可查看并管理 SQLite 数据库。
+通过浏览器访问 `http://localhost:6801` 即可进入 Web UI。
 
-> **注意：** `sqlite-web` 共享挂载 `./data` 目录以读取数据库文件。
+> **注意：** `sqlite-web` 通过主机卷挂载直接访问 `./data/openkb.db`。
 
-### MySQL / MariaDB 可视化管理（使用 `phpMyAdmin`）
+### MySQL / MariaDB（使用 `phpMyAdmin`）
 
-在使用 MySQL 部署时，可在 `docker-compose.yaml` 中添加 `phpMyAdmin` 服务：
+将 OpenKB 连接到 MySQL 数据库时，在 `docker-compose.yaml` 中添加 `phpMyAdmin`：
 
 ```yaml
 services:
   openkb:
-    # ... (原有 openkb 服务配置)
+    # ... (现有的 openkb 服务配置)
 
   phpmyadmin:
     image: phpmyadmin:latest
@@ -61,4 +58,4 @@ services:
       - mysql
 ```
 
-启动后访问 `http://localhost:8080` 即可进入 phpMyAdmin 管理界面。
+通过浏览器访问 `http://localhost:8080` 即可进入 phpMyAdmin。
