@@ -1,6 +1,6 @@
 {
   "name": "openkb-backend",
-  "version": "0.1.0",
+  "version": "1.3.0",
   "packageManager": "pnpm@11.15.1",
   "private": true,
   "description": "Self-hosted OpenKB server for canonical, versioned project knowledge.",
