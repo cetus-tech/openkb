@@ -5,12 +5,17 @@ import { describe, expect, it } from 'vitest';
 import { createKnex } from '../src/db/index.js';
 import {
     createProposal,
+    createKnowledgeGroup,
+    deleteKnowledgeGroup,
     deleteKnowledgeVersion,
     getKnowledge,
     listKnowledge,
+    listKnowledgeGroups,
     listKnowledgePage,
     listDocumentVersions,
     listProposals,
+    reorderKnowledgeGroups,
+    setKnowledgeGroup,
     updateProposalStatus,
     upsertKnowledge,
 } from '../src/db/db-access.js';
@@ -246,6 +251,68 @@ describe('db repository', () => {
             expect(reopened?.reviewedAt).toBeUndefined();
 
             await expect(updateProposalStatus(db, proposal.id, 'open')).rejects.toThrow('already open');
+        } finally {
+            await db.destroy();
+            await rm(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('organizes knowledge into dashboard groups without changing list retrieval content', async () => {
+        const { dir, db } = await sqliteDb();
+        try {
+            const parent = await createKnowledgeGroup(db, { name: 'Backend' });
+            const child = await createKnowledgeGroup(db, { name: 'API', parentId: parent.id });
+            await upsertKnowledge(db, {
+                slug: 'api-rule',
+                title: 'API Rule',
+                summary: 'Rule for API',
+                type: 'rule',
+                content: 'Use Fastify',
+            });
+            await upsertKnowledge(db, {
+                slug: 'loose-rule',
+                title: 'Loose Rule',
+                summary: 'Ungrouped',
+                type: 'rule',
+                content: 'Stay loose',
+            });
+
+            const moved = await setKnowledgeGroup(db, 'api-rule', child.id);
+            expect(moved?.groupId).toBe(child.id);
+            // Group assignment must not create a new version.
+            expect(moved?.version).toBe(1);
+            expect(moved?.content).toBe('Use Fastify');
+
+            const inGroup = await listKnowledgePage(db, { groupId: child.id });
+            expect(inGroup.total).toBe(1);
+            expect(inGroup.knowledge[0]?.slug).toBe('api-rule');
+
+            const ungrouped = await listKnowledgePage(db, { groupId: 'ungrouped' });
+            // seeded openkb-mcp-instructions + loose-rule
+            expect(ungrouped.knowledge.some((k) => k.slug === 'loose-rule')).toBe(true);
+            expect(ungrouped.knowledge.every((k) => k.groupId == null)).toBe(true);
+
+            // Full list (MCP-style) still returns everything regardless of groups.
+            const all = await listKnowledge(db);
+            expect(all.some((k) => k.slug === 'api-rule')).toBe(true);
+            expect(all.some((k) => k.slug === 'loose-rule')).toBe(true);
+
+            const payload = await listKnowledgeGroups(db);
+            expect(payload.tree).toHaveLength(1);
+            expect(payload.tree[0]?.name).toBe('Backend');
+            expect(payload.tree[0]?.children[0]?.name).toBe('API');
+            expect(payload.tree[0]?.children[0]?.knowledgeCount).toBe(1);
+
+            await reorderKnowledgeGroups(db, [
+                { id: parent.id, parentId: null, sortOrder: 0 },
+                { id: child.id, parentId: null, sortOrder: 1 },
+            ]);
+            const reordered = await listKnowledgeGroups(db);
+            expect(reordered.tree.map((g) => g.name)).toEqual(['Backend', 'API']);
+
+            await deleteKnowledgeGroup(db, child.id);
+            const afterDelete = await getKnowledge(db, 'api-rule');
+            expect(afterDelete?.groupId).toBeNull();
         } finally {
             await db.destroy();
             await rm(dir, { recursive: true, force: true });

@@ -11,6 +11,12 @@ import {
   createProposal,
   deleteKnowledge,
   deleteKnowledgeVersion,
+  setKnowledgeGroup,
+  listKnowledgeGroups,
+  createKnowledgeGroup,
+  updateKnowledgeGroup,
+  deleteKnowledgeGroup,
+  reorderKnowledgeGroups,
   type DeleteKnowledgeVersionResult,
   registerOrUpdateAgent,
   touchAgent,
@@ -32,6 +38,11 @@ import {
   type RegisterAgentInput,
   type AgentPermission,
   type AgentInfo,
+  type KnowledgeGroupsPayload,
+  type KnowledgeGroup,
+  type CreateKnowledgeGroupInput,
+  type UpdateKnowledgeGroupInput,
+  type ReorderKnowledgeGroupItem,
 } from '../db/db-access.js'
 import { searchKnowledge, selectContextKnowledge, type ContextQuery, type Knowledge } from '../core/index.js'
 
@@ -46,6 +57,13 @@ export interface KnowledgeService {
   upsertKnowledge(input: UpsertKnowledgeInput): Promise<Knowledge>
   deleteKnowledge(slug: string): Promise<boolean>
   deleteKnowledgeVersion(slug: string, versionId: string): Promise<DeleteKnowledgeVersionResult>
+  setKnowledgeGroup(slug: string, groupId: number | null): Promise<Knowledge | undefined>
+  /* knowledge groups (dashboard only; does not affect MCP retrieval) */
+  listKnowledgeGroups(): Promise<KnowledgeGroupsPayload>
+  createKnowledgeGroup(input: CreateKnowledgeGroupInput): Promise<KnowledgeGroup>
+  updateKnowledgeGroup(id: number, input: UpdateKnowledgeGroupInput): Promise<KnowledgeGroup | undefined>
+  deleteKnowledgeGroup(id: number): Promise<boolean>
+  reorderKnowledgeGroups(items: ReorderKnowledgeGroupItem[]): Promise<KnowledgeGroupsPayload>
   /* proposals */
   proposeKnowledge(input: ProposeKnowledgeInput): ReturnType<typeof createProposal>
   listProposals(): ReturnType<typeof listProposals>
@@ -80,6 +98,12 @@ export function createKnowledgeService(db: Knex): KnowledgeService {
     upsertKnowledge: (input) => upsertKnowledge(db, input),
     deleteKnowledge: (slug) => deleteKnowledge(db, slug),
     deleteKnowledgeVersion: (slug, versionId) => deleteKnowledgeVersion(db, slug, versionId),
+    setKnowledgeGroup: (slug, groupId) => setKnowledgeGroup(db, slug, groupId),
+    listKnowledgeGroups: () => listKnowledgeGroups(db),
+    createKnowledgeGroup: (input) => createKnowledgeGroup(db, input),
+    updateKnowledgeGroup: (id, input) => updateKnowledgeGroup(db, id, input),
+    deleteKnowledgeGroup: (id) => deleteKnowledgeGroup(db, id),
+    reorderKnowledgeGroups: (items) => reorderKnowledgeGroups(db, items),
     proposeKnowledge: (input) => createProposal(db, input),
     listProposals: () => listProposals(db),
     listProposalsPage: (options) => listProposalsPage(db, options),

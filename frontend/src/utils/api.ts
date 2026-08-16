@@ -10,10 +10,36 @@ export interface Knowledge {
   /** Author of the current version. */
   createdBy?: string
   updatedAt?: string
+  /**
+   * Dashboard-only group assignment for organizing knowledge in the UI.
+   * Does not affect MCP search or context retrieval.
+   */
+  groupId?: number | null
   scope: {
     projectSlug?: string
     pathPatterns?: string[]
   }
+}
+
+export interface KnowledgeGroup {
+  id: number
+  name: string
+  parentId: number | null
+  sortOrder: number
+  knowledgeCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface KnowledgeGroupTreeNode extends KnowledgeGroup {
+  children: KnowledgeGroupTreeNode[]
+}
+
+export interface KnowledgeGroupsPayload {
+  groups: KnowledgeGroup[]
+  tree: KnowledgeGroupTreeNode[]
+  ungroupedCount: number
+  totalCount: number
 }
 
 export interface KnowledgePage {

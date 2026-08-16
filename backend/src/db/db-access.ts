@@ -41,6 +41,49 @@ export interface KnowledgeListOptions {
   query?: string
   type?: string
   status?: string
+  /**
+   * Dashboard-only filter. Omit for all knowledge.
+   * Pass `null` or `'ungrouped'` for items with no group.
+   * Pass a number for a specific group (direct membership only).
+   */
+  groupId?: number | null | 'ungrouped'
+}
+
+export interface KnowledgeGroup {
+  id: number
+  name: string
+  parentId: number | null
+  sortOrder: number
+  knowledgeCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface KnowledgeGroupTreeNode extends KnowledgeGroup {
+  children: KnowledgeGroupTreeNode[]
+}
+
+export interface KnowledgeGroupsPayload {
+  groups: KnowledgeGroup[]
+  tree: KnowledgeGroupTreeNode[]
+  ungroupedCount: number
+  totalCount: number
+}
+
+export interface CreateKnowledgeGroupInput {
+  name: string
+  parentId?: number | null
+}
+
+export interface UpdateKnowledgeGroupInput {
+  name?: string
+  parentId?: number | null
+}
+
+export interface ReorderKnowledgeGroupItem {
+  id: number
+  parentId: number | null
+  sortOrder: number
 }
 
 export interface VersionListOptions {
@@ -149,6 +192,16 @@ interface KnowledgeRow {
   summary: string
   scope_json: string | KnowledgeScope
   current_version_id?: number | null
+  group_id?: number | null
+  created_at: string
+  updated_at: string
+}
+
+interface KnowledgeGroupRow {
+  id: number
+  name: string
+  parent_id: number | null
+  sort_order: number
   created_at: string
   updated_at: string
 }
@@ -272,6 +325,7 @@ function joinedKnowledgeSelect(db: Knex) {
       'k.summary',
       'k.scope_json',
       'k.current_version_id',
+      'k.group_id',
       'k.created_at',
       'k.updated_at',
       'v.id as version_id',
@@ -297,7 +351,66 @@ function mapKnowledgeRow(row: KnowledgeJoinedRow): Knowledge {
     version: row.version_number ?? 0,
     createdBy: row.created_by ?? undefined,
     updatedAt: row.updated_at,
+    groupId: row.group_id ?? null,
   }
+}
+
+function mapGroupRow(row: KnowledgeGroupRow, knowledgeCount = 0): KnowledgeGroup {
+  return {
+    id: row.id,
+    name: row.name,
+    parentId: row.parent_id ?? null,
+    sortOrder: row.sort_order,
+    knowledgeCount,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+function buildGroupTree(groups: KnowledgeGroup[]): KnowledgeGroupTreeNode[] {
+  const nodes = new Map<number, KnowledgeGroupTreeNode>()
+  for (const group of groups) {
+    nodes.set(group.id, { ...group, children: [] })
+  }
+  const roots: KnowledgeGroupTreeNode[] = []
+  for (const group of groups) {
+    const node = nodes.get(group.id)!
+    if (group.parentId != null && nodes.has(group.parentId)) {
+      nodes.get(group.parentId)!.children.push(node)
+    } else {
+      roots.push(node)
+    }
+  }
+  const sortRecursive = (list: KnowledgeGroupTreeNode[]) => {
+    list.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name) || a.id - b.id)
+    for (const node of list) sortRecursive(node.children)
+  }
+  sortRecursive(roots)
+  return roots
+}
+
+async function assertGroupExists(db: Knex, groupId: number): Promise<KnowledgeGroupRow> {
+  const row = await db<KnowledgeGroupRow>('knowledge_groups').where({ id: groupId }).first()
+  if (!row) throw new Error(`Knowledge group not found: ${groupId}`)
+  return row
+}
+
+/** True when `ancestorId` is `groupId` or an ancestor of it (cycle guard). */
+async function isGroupDescendantOrSelf(db: Knex, groupId: number, ancestorId: number): Promise<boolean> {
+  if (groupId === ancestorId) return true
+  let currentId: number | null = groupId
+  const seen = new Set<number>()
+  while (currentId != null) {
+    if (seen.has(currentId)) break
+    seen.add(currentId)
+    const row: KnowledgeGroupRow | undefined = await db<KnowledgeGroupRow>('knowledge_groups')
+      .where({ id: currentId })
+      .first()
+    if (!row) break
+    if (row.parent_id === ancestorId) return true
+    currentId = row.parent_id
+  }
+  return false
 }
 
 function versionFromRow(row: VersionRow, currentVersionId?: number | null): KnowledgeVersion {
@@ -391,6 +504,11 @@ export async function listKnowledgePage(db: Knex, options: KnowledgeListOptions 
   let query = joinedKnowledgeSelect(db)
   if (options.type) query = query.where('k.type', options.type)
   if (options.status) query = query.where('k.status', options.status)
+  if (options.groupId === null || options.groupId === 'ungrouped') {
+    query = query.whereNull('k.group_id')
+  } else if (typeof options.groupId === 'number' && Number.isFinite(options.groupId)) {
+    query = query.where('k.group_id', options.groupId)
+  }
   if (normalizedQuery) {
     const pattern = `%${normalizedQuery}%`
     query = query.whereRaw(
@@ -464,6 +582,179 @@ export async function deleteKnowledge(db: Knex, slug: string): Promise<boolean> 
     .where({ slug })
     .delete()
   return deleted > 0
+}
+
+/**
+ * Assign knowledge to a dashboard group (or clear group). Management-only;
+ * does not create a new version or change retrieval behavior.
+ */
+export async function setKnowledgeGroup(
+  db: Knex,
+  slug: string,
+  groupId: number | null,
+): Promise<Knowledge | undefined> {
+  const existing = await db<KnowledgeRow>('knowledge').where({ slug }).first()
+  if (!existing) return undefined
+  if (groupId != null) await assertGroupExists(db, groupId)
+  await db<KnowledgeRow>('knowledge').where({ id: existing.id }).update({ group_id: groupId })
+  return getKnowledge(db, slug)
+}
+
+/* ------------------------------------------------------------------ */
+/*  Knowledge groups (dashboard organization only)                     */
+/* ------------------------------------------------------------------ */
+
+export async function listKnowledgeGroups(db: Knex): Promise<KnowledgeGroupsPayload> {
+  const rows = await db<KnowledgeGroupRow>('knowledge_groups')
+    .orderBy('sort_order', 'asc')
+    .orderBy('name', 'asc')
+    .orderBy('id', 'asc')
+
+  const countRows = await db('knowledge')
+    .select('group_id')
+    .count('id as count')
+    .groupBy('group_id') as Array<{ group_id: number | null; count: number | string }>
+
+  const counts = new Map<number | null, number>()
+  for (const row of countRows) {
+    counts.set(row.group_id ?? null, Number(row.count))
+  }
+
+  const groups = rows.map((row) => mapGroupRow(row, counts.get(row.id) ?? 0))
+  const totalCount = [...counts.values()].reduce((sum, n) => sum + n, 0)
+  return {
+    groups,
+    tree: buildGroupTree(groups),
+    ungroupedCount: counts.get(null) ?? 0,
+    totalCount,
+  }
+}
+
+export async function createKnowledgeGroup(db: Knex, input: CreateKnowledgeGroupInput): Promise<KnowledgeGroup> {
+  const name = input.name.trim()
+  if (!name) throw new Error('Group name is required')
+  const parentId = input.parentId ?? null
+  if (parentId != null) await assertGroupExists(db, parentId)
+
+  const siblingQuery = db<KnowledgeGroupRow>('knowledge_groups')
+  const maxRow = parentId == null
+    ? await siblingQuery.whereNull('parent_id').max('sort_order as max').first() as { max?: number | string } | undefined
+    : await siblingQuery.where({ parent_id: parentId }).max('sort_order as max').first() as { max?: number | string } | undefined
+  const sortOrder = Number(maxRow?.max ?? -1) + 1
+  const timestamp = now()
+  const id = await insertId(db, 'knowledge_groups', {
+    name,
+    parent_id: parentId,
+    sort_order: sortOrder,
+    created_at: timestamp,
+    updated_at: timestamp,
+  })
+  const row = await db<KnowledgeGroupRow>('knowledge_groups').where({ id }).first()
+  return mapGroupRow(row!, 0)
+}
+
+export async function updateKnowledgeGroup(
+  db: Knex,
+  id: number,
+  input: UpdateKnowledgeGroupInput,
+): Promise<KnowledgeGroup | undefined> {
+  const existing = await db<KnowledgeGroupRow>('knowledge_groups').where({ id }).first()
+  if (!existing) return undefined
+
+  const updates: Partial<KnowledgeGroupRow> = { updated_at: now() }
+  if (input.name !== undefined) {
+    const name = input.name.trim()
+    if (!name) throw new Error('Group name is required')
+    updates.name = name
+  }
+  if (input.parentId !== undefined) {
+    const parentId = input.parentId
+    if (parentId != null) {
+      await assertGroupExists(db, parentId)
+      if (await isGroupDescendantOrSelf(db, parentId, id)) {
+        throw new Error('Cannot move a group into itself or one of its descendants')
+      }
+    }
+    updates.parent_id = parentId
+  }
+
+  await db<KnowledgeGroupRow>('knowledge_groups').where({ id }).update(updates)
+  const payload = await listKnowledgeGroups(db)
+  return payload.groups.find((g) => g.id === id)
+}
+
+export async function deleteKnowledgeGroup(db: Knex, id: number): Promise<boolean> {
+  const existing = await db<KnowledgeGroupRow>('knowledge_groups').where({ id }).first()
+  if (!existing) return false
+
+  await db.transaction(async (trx) => {
+    // Reparent children to this group's parent so the tree stays intact.
+    await trx<KnowledgeGroupRow>('knowledge_groups')
+      .where({ parent_id: id })
+      .update({ parent_id: existing.parent_id, updated_at: now() })
+    // Knowledge becomes ungrouped; groups never gate retrieval.
+    await trx<KnowledgeRow>('knowledge').where({ group_id: id }).update({ group_id: null })
+    await trx<KnowledgeGroupRow>('knowledge_groups').where({ id }).delete()
+  })
+  return true
+}
+
+/**
+ * Apply a full sibling/parent layout after drag-and-drop.
+ * Validates cycle-free parent links, then writes parent_id + sort_order.
+ */
+export async function reorderKnowledgeGroups(
+  db: Knex,
+  items: ReorderKnowledgeGroupItem[],
+): Promise<KnowledgeGroupsPayload> {
+  if (!items.length) return listKnowledgeGroups(db)
+
+  const existing = await db<KnowledgeGroupRow>('knowledge_groups').select('id')
+  const existingIds = new Set(existing.map((row) => row.id))
+  for (const item of items) {
+    if (!existingIds.has(item.id)) throw new Error(`Knowledge group not found: ${item.id}`)
+    if (item.parentId != null && !existingIds.has(item.parentId)) {
+      throw new Error(`Knowledge group not found: ${item.parentId}`)
+    }
+    if (item.parentId === item.id) throw new Error('Cannot set a group as its own parent')
+  }
+
+  // Build parent map from the proposed layout and reject cycles.
+  const parentOf = new Map<number, number | null>()
+  for (const item of items) parentOf.set(item.id, item.parentId)
+  for (const id of existingIds) {
+    if (!parentOf.has(id)) {
+      const row = existing.find((r) => r.id === id)
+      // Keep unmentioned groups; only reorder submitted ones.
+      void row
+    }
+  }
+  for (const item of items) {
+    let cursor = item.parentId
+    const seen = new Set<number>([item.id])
+    while (cursor != null) {
+      if (seen.has(cursor)) throw new Error('Group reorder would create a cycle')
+      seen.add(cursor)
+      if (parentOf.has(cursor)) {
+        cursor = parentOf.get(cursor) ?? null
+      } else {
+        const row = await db<KnowledgeGroupRow>('knowledge_groups').where({ id: cursor }).first()
+        cursor = row?.parent_id ?? null
+      }
+    }
+  }
+
+  const timestamp = now()
+  await db.transaction(async (trx) => {
+    for (const item of items) {
+      await trx<KnowledgeGroupRow>('knowledge_groups').where({ id: item.id }).update({
+        parent_id: item.parentId,
+        sort_order: item.sortOrder,
+        updated_at: timestamp,
+      })
+    }
+  })
+  return listKnowledgeGroups(db)
 }
 
 export type DeleteKnowledgeVersionResult =

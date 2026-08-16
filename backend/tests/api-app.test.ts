@@ -213,6 +213,66 @@ describe('api app', () => {
     }
   })
 
+  it('manages dashboard knowledge groups without affecting search', async () => {
+    const { app, db, dir, auth } = await testApp()
+    try {
+      await app.inject({
+        method: 'POST',
+        url: '/v1/knowledge',
+        headers: auth.headers,
+        payload: {
+          slug: 'grouped-item',
+          title: 'Grouped Item',
+          summary: 'Item for groups',
+          type: 'context',
+          content: 'group-search-token-unique',
+        },
+      })
+
+      const created = await app.inject({
+        method: 'POST',
+        url: '/v1/knowledge-groups',
+        headers: auth.headers,
+        payload: { name: 'Product' },
+      })
+      expect(created.statusCode).toBe(201)
+      const groupId = created.json().group.id as number
+
+      const moved = await app.inject({
+        method: 'PATCH',
+        url: '/v1/knowledge/grouped-item/group',
+        headers: auth.headers,
+        payload: { groupId },
+      })
+      expect(moved.statusCode).toBe(200)
+      expect(moved.json().knowledge.groupId).toBe(groupId)
+
+      const filtered = await app.inject({
+        method: 'GET',
+        url: `/v1/knowledge?page=1&pageSize=20&groupId=${groupId}`,
+        headers: auth.headers,
+      })
+      expect(filtered.statusCode).toBe(200)
+      expect(filtered.json().total).toBe(1)
+      expect(filtered.json().knowledge[0].slug).toBe('grouped-item')
+
+      // MCP-style search is unaffected by groups.
+      const search = await app.inject({
+        method: 'GET',
+        url: '/v1/search?q=group-search-token-unique',
+        headers: auth.headers,
+      })
+      expect(search.json().knowledge[0].slug).toBe('grouped-item')
+
+      const groups = await app.inject({ method: 'GET', url: '/v1/knowledge-groups', headers: auth.headers })
+      expect(groups.json().tree[0].name).toBe('Product')
+      expect(groups.json().tree[0].knowledgeCount).toBe(1)
+    } finally {
+      await db.destroy()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
   it('creates proposals', async () => {
     const { app, db, dir, auth } = await testApp()
     try {

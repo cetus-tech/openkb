@@ -200,6 +200,7 @@ export function buildApp(service?: KnowledgeService) {
             q?: string;
             type?: string;
             status?: string;
+            groupId?: string;
         };
         if (!Object.values(query).some((value) => value !== undefined)) {
             const knowledge = await service.listKnowledge();
@@ -211,13 +212,128 @@ export function buildApp(service?: KnowledgeService) {
                 totalPages: 1,
             };
         }
+        let groupId: number | null | 'ungrouped' | undefined
+        if (query.groupId === 'ungrouped' || query.groupId === 'none') {
+            groupId = 'ungrouped'
+        } else if (query.groupId !== undefined && query.groupId !== '') {
+            const parsed = Number(query.groupId)
+            if (!Number.isFinite(parsed)) {
+                return service.listKnowledgePage({
+                    page: Number(query.page ?? 1),
+                    pageSize: Number(query.pageSize ?? 20),
+                    query: query.q,
+                    type: query.type,
+                    status: query.status,
+                })
+            }
+            groupId = parsed
+        }
         return service.listKnowledgePage({
             page: Number(query.page ?? 1),
             pageSize: Number(query.pageSize ?? 20),
             query: query.q,
             type: query.type,
             status: query.status,
+            groupId,
         });
+    });
+
+    /* ---- Knowledge groups (dashboard organization; not used by MCP) ---- */
+
+    app.get('/v1/knowledge-groups', async () => {
+        if (!service) return { groups: [], tree: [], ungroupedCount: 0, totalCount: 0 };
+        return service.listKnowledgeGroups();
+    });
+
+    app.post('/v1/knowledge-groups', async (request, reply) => {
+        if (!service) return reply.serviceUnavailable('OpenKB service is not configured');
+        if (!isAdmin(request)) return reply.forbidden('Admin role required');
+        const body = request.body as { name?: string; parentId?: number | null };
+        if (!body.name?.trim()) return reply.badRequest('name is required');
+        try {
+            const group = await service.createKnowledgeGroup({
+                name: body.name,
+                parentId: body.parentId ?? null,
+            });
+            return reply.code(201).send({ group });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to create group';
+            if (message.includes('not found')) return reply.badRequest(message);
+            return reply.badRequest(message);
+        }
+    });
+
+    app.patch('/v1/knowledge-groups/:id', async (request, reply) => {
+        if (!service) return reply.serviceUnavailable('OpenKB service is not configured');
+        if (!isAdmin(request)) return reply.forbidden('Admin role required');
+        const params = request.params as { id: string };
+        const id = Number(params.id);
+        if (!Number.isFinite(id)) return reply.badRequest('Invalid group id');
+        const body = request.body as { name?: string; parentId?: number | null };
+        try {
+            const group = await service.updateKnowledgeGroup(id, {
+                name: body.name,
+                parentId: body.parentId,
+            });
+            if (!group) return reply.notFound(`Knowledge group not found: ${id}`);
+            return { group };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to update group';
+            return reply.badRequest(message);
+        }
+    });
+
+    app.delete('/v1/knowledge-groups/:id', async (request, reply) => {
+        if (!service) return reply.serviceUnavailable('OpenKB service is not configured');
+        if (!isAdmin(request)) return reply.forbidden('Admin role required');
+        const params = request.params as { id: string };
+        const id = Number(params.id);
+        if (!Number.isFinite(id)) return reply.badRequest('Invalid group id');
+        const deleted = await service.deleteKnowledgeGroup(id);
+        if (!deleted) return reply.notFound(`Knowledge group not found: ${id}`);
+        return reply.code(204).send();
+    });
+
+    app.put('/v1/knowledge-groups/reorder', async (request, reply) => {
+        if (!service) return reply.serviceUnavailable('OpenKB service is not configured');
+        if (!isAdmin(request)) return reply.forbidden('Admin role required');
+        const body = request.body as {
+            items?: Array<{ id?: number; parentId?: number | null; sortOrder?: number }>;
+        };
+        if (!Array.isArray(body.items)) return reply.badRequest('items array is required');
+        const items = body.items.map((item) => ({
+            id: Number(item.id),
+            parentId: item.parentId == null ? null : Number(item.parentId),
+            sortOrder: Number(item.sortOrder ?? 0),
+        }));
+        if (items.some((item) => !Number.isFinite(item.id) || !Number.isFinite(item.sortOrder))) {
+            return reply.badRequest('Each item needs a valid id and sortOrder');
+        }
+        try {
+            return await service.reorderKnowledgeGroups(items);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to reorder groups';
+            return reply.badRequest(message);
+        }
+    });
+
+    app.patch('/v1/knowledge/:slug/group', async (request, reply) => {
+        if (!service) return reply.serviceUnavailable('OpenKB service is not configured');
+        if (!isAdmin(request)) return reply.forbidden('Admin role required');
+        const params = request.params as { slug: string };
+        const body = request.body as { groupId?: number | null };
+        if (body.groupId !== null && body.groupId !== undefined && !Number.isFinite(Number(body.groupId))) {
+            return reply.badRequest('groupId must be a number or null');
+        }
+        const groupId = body.groupId == null ? null : Number(body.groupId);
+        try {
+            const knowledge = await service.setKnowledgeGroup(params.slug, groupId);
+            if (!knowledge) return reply.notFound(`OpenKB knowledge not found: ${params.slug}`);
+            return { knowledge };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to move knowledge';
+            return reply.badRequest(message);
+        }
     });
 
     app.post('/v1/knowledge', async (request, reply) => {

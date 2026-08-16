@@ -1,14 +1,14 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 class="m-0 text-2xl font-bold leading-tight text-gray-900 dark:text-white">{{ i18n.t('knowledge.title') }}</h1>
-        <p class="mt-4 mb-0 max-w-4xl text-sm text-gray-500 dark:text-dark-400">
+        <p class="mt-2 mb-0 max-w-4xl text-sm text-gray-500 dark:text-dark-400">
           {{ i18n.t('knowledge.subtitle') }}
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
-        <n-button quaternary :loading="loading" title="Refresh knowledge" @click="fetchKnowledge">
+        <n-button quaternary :loading="loading" title="Refresh knowledge" @click="refreshAll">
           <template #icon><div class="i-tabler-refresh" /></template>
           {{ i18n.t('common.refresh') }}
         </n-button>
@@ -35,64 +35,82 @@
       {{ error }}
     </n-alert>
 
-    <n-card size="small" :bordered="true">
-      <div class="flex flex-col gap-3 xl:flex-row xl:items-center">
-        <n-input
-          v-model:value="query"
-          clearable
-          placeholder="Search title, summary, slug, or content"
-          class="xl:w-72 sm:w-64 w-full"
-          @keyup.enter="submitSearch"
-          @clear="submitSearch"
-        >
-          <template #prefix><div class="i-tabler-search text-gray-400" /></template>
-        </n-input>
-        <n-button type="primary" secondary :loading="loading" title="Search knowledge" @click="submitSearch">
-          <template #icon><div class="i-tabler-search" /></template>
-          {{ i18n.t('common.search') }}
-        </n-button>
-        <n-select v-model:value="typeFilter" clearable :options="typeOptions" :placeholder="i18n.t('knowledge.allTypes')" class="xl:w-44" />
-        <n-select v-model:value="statusFilter" clearable :options="statusFilterOptions" :placeholder="i18n.t('knowledge.allStatuses')" class="xl:w-48" />
-      </div>
-      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-dark-800 dark:text-dark-400">
-        <span>{{ countSummaryText }}</span>
-      </div>
-    </n-card>
+    <div class="grid items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <!-- Left: group tree -->
+      <n-card size="small" :bordered="true" class="lg:sticky lg:top-4">
+        <KnowledgeGroupPane
+          ref="groupPane"
+          :selection="groupSelection"
+          :is-admin="session.isAdmin"
+          @select="onGroupSelect"
+          @changed="onGroupsChanged"
+          @knowledge-moved="onKnowledgeMoved"
+        />
+      </n-card>
 
-    <n-spin :show="loading">
-      <n-data-table
-        v-if="documents.length"
-        size="small"
-        :bordered="true"
-        :single-line="false"
-        :columns="columns"
-        :data="documents"
-        :row-key="(row: Knowledge) => row.id"
-        :row-props="rowProps"
-      />
-      <n-empty v-else :description="emptyDescriptionText">
-        <template #extra>
-          <div class="flex flex-wrap justify-center gap-2">
-            <n-button v-if="hasFilters" quaternary @click="clearFilters">{{ i18n.t('knowledge.clearFilters') }}</n-button>
-            <n-button v-else-if="session.isAdmin" type="primary" @click="openCreate">
-              <template #icon><div class="i-tabler-plus" /></template>
-              {{ i18n.t('knowledge.createKnowledge') }}
+      <!-- Right: knowledge list -->
+      <div class="flex min-w-0 flex-col gap-3">
+        <n-card size="small" :bordered="true">
+          <div class="flex flex-col gap-3 xl:flex-row xl:items-center">
+            <n-input
+              v-model:value="query"
+              clearable
+              placeholder="Search title, summary, slug, or content"
+              class="xl:w-72 sm:w-64 w-full"
+              @keyup.enter="submitSearch"
+              @clear="submitSearch"
+            >
+              <template #prefix><div class="i-tabler-search text-gray-400" /></template>
+            </n-input>
+            <n-button type="primary" secondary :loading="loading" title="Search knowledge" @click="submitSearch">
+              <template #icon><div class="i-tabler-search" /></template>
+              {{ i18n.t('common.search') }}
             </n-button>
+            <n-select v-model:value="typeFilter" clearable :options="typeOptions" :placeholder="i18n.t('knowledge.allTypes')" class="xl:w-44" />
+            <n-select v-model:value="statusFilter" clearable :options="statusFilterOptions" :placeholder="i18n.t('knowledge.allStatuses')" class="xl:w-48" />
           </div>
-        </template>
-      </n-empty>
-    </n-spin>
+          <div class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-dark-800 dark:text-dark-400">
+            <span>{{ countSummaryText }}</span>
+            <span v-if="session.isAdmin" class="text-gray-400 dark:text-dark-500">{{ i18n.t('knowledge.dragHint') }}</span>
+          </div>
+        </n-card>
 
-    <n-pagination
-      v-if="total"
-      v-model:page="page"
-      v-model:page-size="pageSize"
-      :item-count="total"
-      show-size-picker
-      :page-sizes="pageSizes"
-      @update:page="fetchKnowledge"
-      @update:page-size="onPageSizeChange"
-    />
+        <n-spin :show="loading" class="min-h-0">
+          <n-data-table
+            v-if="documents.length"
+            size="small"
+            :bordered="true"
+            :single-line="false"
+            :columns="columns"
+            :data="documents"
+            :row-key="(row: Knowledge) => row.id"
+            :row-props="rowProps"
+          />
+          <n-empty v-else :description="emptyDescriptionText">
+            <template #extra>
+              <div class="flex flex-wrap justify-center gap-2">
+                <n-button v-if="hasFilters" quaternary @click="clearFilters">{{ i18n.t('knowledge.clearFilters') }}</n-button>
+                <n-button v-else-if="session.isAdmin" type="primary" @click="openCreate">
+                  <template #icon><div class="i-tabler-plus" /></template>
+                  {{ i18n.t('knowledge.createKnowledge') }}
+                </n-button>
+              </div>
+            </template>
+          </n-empty>
+        </n-spin>
+
+        <n-pagination
+          v-if="total"
+          v-model:page="page"
+          v-model:page-size="pageSize"
+          :item-count="total"
+          show-size-picker
+          :page-sizes="pageSizes"
+          @update:page="fetchKnowledge"
+          @update:page-size="onPageSizeChange"
+        />
+      </div>
+    </div>
 
     <n-modal v-model:show="showEditor" preset="card" title="Add knowledge" class="w-[min(760px,calc(100vw-2rem))]">
       <KnowledgeEditorForm
@@ -117,6 +135,7 @@ import { computed, h, onMounted, reactive, ref, watch } from 'vue'
 import { useDialog, useMessage, NButton, NTag, type DataTableColumns } from 'naive-ui'
 import { useRoute, useRouter } from 'vue-router'
 import KnowledgeEditorForm from './components/knowledge/KnowledgeEditorForm.vue'
+import KnowledgeGroupPane, { type GroupSelection } from './components/knowledge/KnowledgeGroupPane.vue'
 import { apiFetch, relativeTime, scopeAtTag, type Knowledge, type KnowledgePage } from '@/utils/api'
 import { useSessionStore } from '@/stores/session'
 import {
@@ -127,6 +146,8 @@ import {
 } from '@/utils/knowledgeForm'
 import { exportKnowledgeMarkdown, parseExportedMarkdown, slugify } from '@/utils/markdown'
 import { useI18nStore } from '@/stores/i18n'
+
+const KNOWLEDGE_MIME = 'application/x-openkb-knowledge'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -141,6 +162,7 @@ const error = ref('')
 const query = ref('')
 const typeFilter = ref<string | null>(null)
 const statusFilter = ref<string | null>(null)
+const groupSelection = ref<GroupSelection>('all')
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
@@ -149,6 +171,7 @@ const showEditor = ref(false)
 const slugTouched = ref(false)
 const importing = ref(false)
 const importInput = ref<HTMLInputElement | null>(null)
+const groupPane = ref<{ refresh: () => Promise<void> } | null>(null)
 
 const form = reactive<KnowledgeFormModel>(emptyKnowledgeForm())
 
@@ -166,7 +189,9 @@ const pageSizes = [
   { label: '20/page', value: 20 },
   { label: '50/page', value: 50 },
 ]
-const hasFilters = computed(() => Boolean(query.value.trim() || typeFilter.value || statusFilter.value))
+const hasFilters = computed(() =>
+  Boolean(query.value.trim() || typeFilter.value || statusFilter.value || groupSelection.value !== 'all'),
+)
 
 const countSummaryText = computed(() => {
   if (i18n.locale === 'zh') {
@@ -196,6 +221,12 @@ const columns = computed<DataTableColumns<Knowledge>>(() => [
     ellipsis: { tooltip: true },
     render: (row) =>
       h('div', { class: 'flex min-w-0 flex-wrap items-center gap-2' }, [
+        session.isAdmin
+          ? h('div', {
+              class: 'i-tabler-grip-vertical shrink-0 cursor-grab text-gray-300 dark:text-dark-600',
+              title: i18n.t('knowledge.dragHint'),
+            })
+          : null,
         h('span', { class: 'truncate font-medium text-gray-900 dark:text-white' }, row.title),
         h(NTag, { size: 'small', type: 'info', bordered: false }, { default: () => scopeAtTag(row) }),
         h(NTag, { size: 'small', bordered: false }, { default: () => row.type }),
@@ -274,14 +305,37 @@ const columns = computed<DataTableColumns<Knowledge>>(() => [
 function rowProps(row: Knowledge) {
   return {
     style: 'cursor: pointer',
+    draggable: session.isAdmin,
+    onDragstart: (e: DragEvent) => {
+      if (!session.isAdmin) return
+      e.dataTransfer?.setData(KNOWLEDGE_MIME, row.slug)
+      e.dataTransfer?.setData('text/plain', row.slug)
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+    },
     onClick: () => router.push({ name: 'dashboard-knowledge-detail', params: { slug: row.slug } }),
   }
+}
+
+function onGroupSelect(selection: GroupSelection) {
+  groupSelection.value = selection
+  page.value = 1
+  fetchKnowledge()
+}
+
+function onGroupsChanged() {
+  // Counts may change; list filter stays unless selection was deleted (handled in pane).
+}
+
+async function onKnowledgeMoved() {
+  await fetchKnowledge()
+  await groupPane.value?.refresh()
 }
 
 function clearFilters() {
   query.value = ''
   typeFilter.value = null
   statusFilter.value = null
+  groupSelection.value = 'all'
   page.value = 1
   fetchKnowledge()
 }
@@ -313,6 +367,8 @@ async function fetchKnowledge() {
   if (query.value.trim()) params.set('q', query.value.trim())
   if (typeFilter.value) params.set('type', typeFilter.value)
   if (statusFilter.value) params.set('status', statusFilter.value)
+  if (groupSelection.value === 'ungrouped') params.set('groupId', 'ungrouped')
+  else if (typeof groupSelection.value === 'number') params.set('groupId', String(groupSelection.value))
   try {
     const data = await apiFetch<KnowledgePage>(`/v1/knowledge?${params.toString()}`)
     documents.value = data.knowledge ?? []
@@ -328,6 +384,10 @@ async function fetchKnowledge() {
   }
 }
 
+async function refreshAll() {
+  await Promise.all([fetchKnowledge(), groupPane.value?.refresh()])
+}
+
 async function saveKnowledge() {
   const invalid = validateKnowledgeForm(form)
   if (invalid) {
@@ -337,9 +397,20 @@ async function saveKnowledge() {
   saving.value = true
   try {
     await apiFetch('/v1/knowledge', { method: 'POST', body: JSON.stringify(knowledgePayloadFromForm(form)) })
+    // Place new knowledge into the currently selected group when applicable.
+    if (typeof groupSelection.value === 'number') {
+      try {
+        await apiFetch(`/v1/knowledge/${encodeURIComponent(form.slug.trim())}/group`, {
+          method: 'PATCH',
+          body: JSON.stringify({ groupId: groupSelection.value }),
+        })
+      } catch {
+        // Group assignment is best-effort; knowledge itself was created.
+      }
+    }
     message.success('Knowledge added')
     showEditor.value = false
-    await fetchKnowledge()
+    await refreshAll()
     router.push({ name: 'dashboard-knowledge-detail', params: { slug: form.slug.trim() } })
   } catch (err) {
     message.error(err instanceof Error ? err.message : 'Failed to save knowledge')
@@ -383,6 +454,12 @@ async function onImportFiles(event: Event) {
             changeSummary: `Imported from ${file.name}`,
           }),
         })
+        if (typeof groupSelection.value === 'number') {
+          await apiFetch(`/v1/knowledge/${encodeURIComponent(parsed.slug)}/group`, {
+            method: 'PATCH',
+            body: JSON.stringify({ groupId: groupSelection.value }),
+          })
+        }
         ok += 1
       } catch (err) {
         failures.push(`${file.name}: ${err instanceof Error ? err.message : 'import failed'}`)
@@ -390,7 +467,7 @@ async function onImportFiles(event: Event) {
     }
     if (ok) {
       message.success(ok === 1 ? 'Imported 1 knowledge item' : `Imported ${ok} knowledge items`)
-      await fetchKnowledge()
+      await refreshAll()
     }
     if (failures.length) {
       error.value = `Import issues:\n${failures.join('\n')}`
@@ -445,7 +522,7 @@ function deleteKnowledge(knowledge: Knowledge) {
       try {
         await apiFetch(`/v1/knowledge/${encodeURIComponent(knowledge.slug)}`, { method: 'DELETE' })
         message.success('Knowledge deleted')
-        await fetchKnowledge()
+        await refreshAll()
       } catch (err) {
         message.error(err instanceof Error ? err.message : 'Failed to delete knowledge')
         throw err

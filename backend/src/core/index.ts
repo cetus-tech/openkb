@@ -42,6 +42,11 @@ export interface Knowledge {
   /** Author of the current version (version.created_by). */
   createdBy?: string
   updatedAt: string
+  /**
+   * Dashboard-only group assignment for organizing knowledge in the UI.
+   * Does not affect MCP search or context retrieval.
+   */
+  groupId?: number | null
 }
 
 export interface ContextQuery {
