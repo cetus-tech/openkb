@@ -10,9 +10,7 @@ backend/
 │   │   ├── config/      # Configuration loader (env vars)
 │   │   ├── core/        # Knowledge model and retrieval logic
 │   │   ├── db/          # Knex setup, migrations, seeds, and DB access
-│   │   │   ├── migrations/
-│   │   │   │   ├── sqlite/    # SQLite-specific migrations
-│   │   │   │   └── mysql/     # MySQL-specific migrations
+│   │   │   ├── migrations/    # Numbered SQLite migrations
 │   │   │   └── seeds/         # Install seed knowledge (e.g. MCP instructions)
 │   │   └── mcp/         # MCP tool server for agent integration
 │   ├── docs/            # Product documentation served by /v1/docs
@@ -35,7 +33,7 @@ backend/
 
 ## backend/
 
-The backend owns the canonical knowledge model, persistence, internal routes, MCP endpoint, auth (users, sessions, tokens), docs serving, and production static frontend serving. It ships with SQLite by default and MySQL dual-migration support. Primary keys are integer autoincrement IDs.
+The backend owns the canonical knowledge model, persistence, internal routes, MCP endpoint, auth (users, sessions, tokens), docs serving, and production static frontend serving. It uses SQLite (`better-sqlite3`).
 
 ## frontend/
 

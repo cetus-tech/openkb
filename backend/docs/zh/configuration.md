@@ -1,16 +1,15 @@
 # 配置说明
 
-OpenKB 通过环境变量进行配置，默认使用 SQLite。
+OpenKB 通过环境变量进行配置。
 
-| 环境变量名 | 默认值 | 说明 |
-| --- | --- | --- |
-| `OPENKB_HOST` | `127.0.0.1` | HTTP 服务器监听地址 |
-| `OPENKB_PORT` | `6800` | HTTP 端口 |
-| `OPENKB_DB_CLIENT` | `sqlite` | 数据库适配器 |
-| `OPENKB_SQLITE_FILENAME` | `openkb.db` | SQLite 文件路径 |
-| `OPENKB_DATA_DIR` | `./data` | 持久化运行时目录 |
+| 环境变量名               | 默认值      | 说明                |
+| ------------------------ | ----------- | ------------------- |
+| `OPENKB_HOST`            | `127.0.0.1` | HTTP 服务器监听地址 |
+| `OPENKB_PORT`            | `6800`      | HTTP 端口           |
+| `OPENKB_SQLITE_FILENAME` | `openkb.db` | SQLite 文件路径     |
+| `OPENKB_DATA_DIR`        | `./data`    | 持久化运行时目录    |
 
-对于 Docker 环境，Compose 文件将 `OPENKB_HOST=0.0.0.0`，并将数据库保存在容器内的 `/data/openkb.db`，该路径挂载到主机的 `./data/openkb.db`。
+OpenKB 使用 SQLite（`better-sqlite3`），持久化数据保存在容器内的 `/data/openkb.db`，该路径在缺省配置时挂载到主机的 `./data/openkb.db`。
 
 ## 身份认证存储
 

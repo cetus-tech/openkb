@@ -17,7 +17,6 @@ async function sqliteDb() {
   const db = createKnex({
     host: '127.0.0.1',
     port: 6800,
-    dbClient: 'sqlite',
     sqliteFilename: join(dir, 'openkb.db'),
     dataDir: dir})
   await db.migrate.latest()

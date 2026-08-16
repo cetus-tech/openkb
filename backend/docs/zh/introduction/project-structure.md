@@ -10,9 +10,7 @@ backend/
 │   │   ├── config/      # 配置加载器（环境变量）
 │   │   ├── core/        # 知识模型和检索逻辑
 │   │   ├── db/          # Knex 设置、迁移、种子文件和数据库访问
-│   │   │   ├── migrations/
-│   │   │   │   ├── sqlite/    # SQLite 专用迁移
-│   │   │   │   └── mysql/     # MySQL 专用迁移
+│   │   │   ├── migrations/    # 编号的 SQLite 迁移
 │   │   │   └── seeds/         # 安装预置种子知识（例如 MCP 指令）
 │   │   └── mcp/         # Agent 集成的 MCP 工具服务器
 │   ├── docs/            # 由 /v1/docs 对外提供的产品文档
@@ -35,7 +33,7 @@ backend/
 
 ## backend/
 
-后端拥有规范知识模型、持久化、内部路由、MCP 端点、认证（用户、Session、令牌）、文档服务以及生产环境静态前端服务。它默认随附 SQLite，并具有 MySQL 双重迁移支持。主键是自增整数 ID。
+后端拥有规范知识模型、持久化、内部路由、MCP 端点、认证（用户、Session、令牌）、文档服务以及生产环境静态前端服务。它使用 SQLite（`better-sqlite3`）。
 
 ## frontend/
 

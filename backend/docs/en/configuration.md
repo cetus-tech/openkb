@@ -1,16 +1,15 @@
 # Configuration
 
-OpenKB is configured with environment variables. By default, OpenKB uses SQLite.
+OpenKB is configured with environment variables.
 
 | Variable                 | Default     | Description                      |
 | ------------------------ | ----------- | -------------------------------- |
 | `OPENKB_HOST`            | `127.0.0.1` | Address the HTTP server binds to |
 | `OPENKB_PORT`            | `6800`      | HTTP port                        |
-| `OPENKB_DB_CLIENT`       | `sqlite`    | Database adapter                 |
 | `OPENKB_SQLITE_FILENAME` | `openkb.db` | SQLite file path                 |
 | `OPENKB_DATA_DIR`        | `./data`    | Persistent runtime directory     |
 
-For Docker, the compose file sets `OPENKB_HOST=0.0.0.0` and stores the database at `/data/openkb.db`, which is mounted to `./data/openkb.db` on the host.
+OpenKB uses SQLite (`better-sqlite3`), persistent data stores in `/data/openkb.db`, which is mounted to `./data/openkb.db` on the host by default.
 
 ## Authentication storage
 

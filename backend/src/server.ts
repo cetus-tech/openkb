@@ -10,7 +10,7 @@ const config = loadConfig()
 const db = createKnex(config)
 
 // Ensure data directory exists before using SQLite
-if (config.dbClient === 'sqlite') {
+{
   const dir = dirname(config.sqliteFilename)
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
 }

@@ -9,7 +9,7 @@ import { registerAuthRoutes, v1AuthHook } from '../src/api/auth.js'
 
 async function testApp() {
   const dir = await mkdtemp(join(tmpdir(), 'openkb-api-'))
-  const db = createKnex({ host: '127.0.0.1', port: 6800, dbClient: 'sqlite', sqliteFilename: join(dir, 'openkb.db'), dataDir: dir })
+  const db = createKnex({ host: '127.0.0.1', port: 6800, sqliteFilename: join(dir, 'openkb.db'), dataDir: dir })
   await db.migrate.latest()
   const app = buildApp(createKnowledgeService(db))
   // Mirror server.ts wiring so /v1/* routes are actually protected in tests.

@@ -36,19 +36,14 @@ pnpm build
 OPENKB_HOST=127.0.0.1 OPENKB_PORT=6800 pnpm start
 ```
 
-The source default is SQLite at `./data/openkb.db`. Create the directory automatically by starting the server from `backend`.
-
 ## Environment variables
 
-| Variable                 | Default     | Purpose                                  |
-| ------------------------ | ----------- | ---------------------------------------- |
-| `OPENKB_HOST`            | `127.0.0.1` | Listen address                           |
-| `OPENKB_PORT`            | `6800`      | HTTP port                                |
-| `OPENKB_DB_CLIENT`       | `sqlite`    | Database adapter; SQLite is the default option |
-| `OPENKB_SQLITE_FILENAME` | `openkb.db` | SQLite database path                     |
-| `OPENKB_DATA_DIR`        | `./data`    | Runtime data directory                   |
-
-The codebase keeps a MySQL migration path for later deployments, but it is not part of the current installation flow.
+| Variable                 | Default     | Purpose                |
+| ------------------------ | ----------- | ---------------------- |
+| `OPENKB_HOST`            | `127.0.0.1` | Listen address         |
+| `OPENKB_PORT`            | `6800`      | HTTP port              |
+| `OPENKB_SQLITE_FILENAME` | `openkb.db` | SQLite database path   |
+| `OPENKB_DATA_DIR`        | `./data`    | Runtime data directory |
 
 ## pnpm and native modules (source install / Docker)
 

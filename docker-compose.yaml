@@ -4,11 +4,6 @@ services:
         container_name: openkb
         restart: unless-stopped
         environment:
-            # Database backend used by OpenKB.
-            # `sqlite` is the default and simplest option for self-hosted/single-node installs.
-            # Future/team deployments may use `mysql` when configured by the app.
-            - OPENKB_DB_CLIENT=sqlite
-
             # SQLite database file path inside the container.
             - OPENKB_SQLITE_FILENAME=openkb.db
 

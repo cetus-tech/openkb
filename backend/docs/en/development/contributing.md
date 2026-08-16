@@ -1,6 +1,6 @@
 # Contributing
 
-OpenKB uses TypeScript, tests, and separate SQLite/MySQL migrations for every DB schema change.
+OpenKB uses TypeScript, tests, and numbered SQLite migrations for every DB schema change.
 
 ## Product boundaries
 
@@ -21,7 +21,7 @@ Focus changes on:
 - Docker/self-hosted delivery
 - user-facing docs served by the app
 
-When changing schema: add SQLite **and** MySQL migrations (or fold into the baseline only when squashing on purpose). Keep product docs under `backend/docs/` in sync with behavior.
+When changing schema: add a new numbered SQLite migration under `backend/src/db/migrations/`. Keep product docs under `backend/docs/` in sync with behavior.
 
 ## Development
 

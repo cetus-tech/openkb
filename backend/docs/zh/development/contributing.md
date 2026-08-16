@@ -1,6 +1,6 @@
 # 贡献指南
 
-OpenKB 使用 TypeScript、测试，以及为每次数据库 Schema 变更提供的独立 SQLite/MySQL 迁移脚本。
+OpenKB 使用 TypeScript、测试，以及为每次数据库 Schema 变更提供的编号 SQLite 迁移脚本。
 
 ## 产品边界
 
@@ -21,7 +21,7 @@ OpenKB 以 MCP 为中心、Docker 托管且基于 Web。
 - Docker/自托管交付
 - 由应用对外提供的面向用户的文档
 
-在更改 Schema 时：请添加 SQLite **和** MySQL 迁移（或仅在故意压平压缩时压入基线）。保持 `backend/docs/` 下的产品文档与实际行为同步。
+在更改 Schema 时：请在 `backend/src/db/migrations/` 下添加编号的 SQLite 迁移。保持 `backend/docs/` 下的产品文档与实际行为同步。
 
 ## 开发工作流
 

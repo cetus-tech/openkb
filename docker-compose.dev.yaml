@@ -29,7 +29,6 @@ services:
             - ./frontend/dist:/app/dist/public
             - ./data:/data
         environment:
-            - OPENKB_DB_CLIENT=sqlite
             - OPENKB_SQLITE_FILENAME=openkb.db
             - OPENKB_DATA_DIR=/data
             - OPENKB_HOST=0.0.0.0

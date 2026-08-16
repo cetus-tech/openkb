@@ -27,27 +27,17 @@ class ExtensionSwapMigrationSource {
   }
 }
 
+/** OpenKB uses SQLite only (better-sqlite3). */
 export function createKnex(config: OpenKbConfig): Knex {
-  if (config.dbClient === 'sqlite') {
-    return knex({
-      client: 'better-sqlite3',
-      connection: { filename: config.sqliteFilename },
-      useNullAsDefault: true,
-      migrations: { migrationSource: new ExtensionSwapMigrationSource(path.join(import.meta.dirname, 'migrations/sqlite')) },
-    })
-  }
-
   return knex({
-    client: 'mysql2',
-    connection: config.mysqlConnection ?? {
-      host: config.mysqlHost,
-      port: config.mysqlPort,
-      user: config.mysqlUser,
-      password: config.mysqlPassword,
-      database: config.mysqlDatabase,
+    client: 'better-sqlite3',
+    connection: { filename: config.sqliteFilename },
+    useNullAsDefault: true,
+    migrations: {
+      migrationSource: new ExtensionSwapMigrationSource(path.join(import.meta.dirname, 'migrations')),
     },
-    migrations: { migrationSource: new ExtensionSwapMigrationSource(path.join(import.meta.dirname, 'migrations/mysql')) },
   })
 }
 
-export const migrationPolicy = 'Every DB schema change must include separate SQLite and MySQL migration files (new table = new migration).'
+export const migrationPolicy =
+  'Every DB schema change is a numbered SQLite migration under backend/src/db/migrations/ (new table = new migration).'
