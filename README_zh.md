@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
-OpenKB Server 是面向 AI Agent 的自托管 SQLite 知识库服务。Agent 通过内置 MCP 端点连接；用户通过 Web 门户添加知识并审核提案记忆。
+OpenKB Server 是面向 AI Agent 的自托管知识库服务。Agent 通过内置 MCP 端点连接；用户通过 Web 控制面板添加知识并审核提案记忆。
 
 ## 快速开始
 
@@ -15,7 +15,6 @@ services:
         container_name: openkb
         restart: unless-stopped
         environment:
-            - OPENKB_DB_CLIENT=sqlite
             - OPENKB_SQLITE_FILENAME=openkb.db
             - OPENKB_DATA_DIR=/data
             - OPENKB_HOST=0.0.0.0

@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
-OpenKB Server is a self-hosted SQLite-backed knowledge service for AI agents. Agents connect through the built-in MCP endpoint; people use the web dashboard to add knowledge and review proposed memories.
+OpenKB Server is a self-hosted knowledge service for AI agents. Agents connect through the built-in MCP endpoint; people use the web dashboard to add knowledge and review proposed memories.
 
 ## Quick start
 
@@ -15,7 +15,6 @@ services:
         container_name: openkb
         restart: unless-stopped
         environment:
-            - OPENKB_DB_CLIENT=sqlite
             - OPENKB_SQLITE_FILENAME=openkb.db
             - OPENKB_DATA_DIR=/data
             - OPENKB_HOST=0.0.0.0
