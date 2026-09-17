@@ -6,6 +6,7 @@ export default {
         github: 'GitHub',
         knowledge: 'Knowledge',
         proposals: 'Proposals',
+        technologies: 'Technologies',
         agents: 'Agents',
         users: 'Users',
         settings: 'Settings',

@@ -35,6 +35,8 @@
       {{ error }}
     </n-alert>
 
+    <ContextPreview v-if="session.isAdmin" />
+
     <div class="grid items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
       <!-- Left: group tree -->
       <n-card size="small" :bordered="true" class="lg:sticky lg:top-4">
@@ -136,6 +138,7 @@ import { useDialog, useMessage, NButton, NTag, type DataTableColumns } from 'nai
 import { useRoute, useRouter } from 'vue-router'
 import KnowledgeEditorForm from './components/knowledge/KnowledgeEditorForm.vue'
 import KnowledgeGroupPane, { type GroupSelection } from './components/knowledge/KnowledgeGroupPane.vue'
+import ContextPreview from './components/knowledge/ContextPreview.vue'
 import { apiFetch, relativeTime, scopeAtTag, type Knowledge, type KnowledgePage } from '@/utils/api'
 import { useSessionStore } from '@/stores/session'
 import {
@@ -229,6 +232,9 @@ const columns = computed<DataTableColumns<Knowledge>>(() => [
           : null,
         h('span', { class: 'truncate font-medium text-gray-900 dark:text-white' }, row.title),
         h(NTag, { size: 'small', type: 'info', bordered: false }, { default: () => scopeAtTag(row) }),
+        row.scope.stacks?.length
+          ? h(NTag, { size: 'small', type: 'info', bordered: false }, { default: () => row.scope.stacks!.join(', ') })
+          : null,
         h(NTag, { size: 'small', bordered: false }, { default: () => row.type }),
         h(NTag, { size: 'small', type: statusType(row.status), bordered: false }, { default: () => row.status }),
       ]),

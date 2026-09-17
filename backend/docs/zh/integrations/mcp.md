@@ -8,13 +8,13 @@ MCP 是 Agent 客户端与 OpenKB 之间的连接协议。OpenKB 是 MCP 服务�
 
 ## 连接详情
 
-| 设置项 | 值 |
-| --- | --- |
-| 端点 (Endpoint) | 本地安装为 `http://localhost:6800/mcp` |
-| 传输协议 (Transport) | Streamable HTTP；请勿为远程 OpenKB 服务器使用 stdio |
-| MCP 认证 | `Authorization: Bearer <OpenKB API 令牌>` |
-| Web 认证 | HttpOnly 浏览器 Session Cookie |
-| 身份请求头 (Header) | `X-OpenKB-Agent: codex`（仅作为身份标签；权限来自令牌） |
+| 设置项               | 值                                                      |
+| -------------------- | ------------------------------------------------------- |
+| 端点 (Endpoint)      | 本地安装为 `http://localhost:6800/mcp`                  |
+| 传输协议 (Transport) | Streamable HTTP；请勿为远程 OpenKB 服务器使用 stdio     |
+| MCP 认证             | `Authorization: Bearer <OpenKB API 令牌>`               |
+| Web 认证             | HttpOnly 浏览器 Session Cookie                          |
+| 身份请求头 (Header)  | `X-OpenKB-Agent: codex`（仅作为身份标签；权限来自令牌） |
 
 浏览器登录与 MCP 认证是分开的。登录会生成浏览器 Session，但不会创建或轮换 API 令牌。请从 **设置 → MCP 令牌 (Settings → MCP tokens)** 或已认证的 `POST /auth/tokens` 端点显式创建令牌。完整的令牌保存在数据库中，并可在设置中再次复制。切勿在 Prompt 中分享令牌或将其提交到项目文件中。
 
@@ -35,19 +35,19 @@ rm openkb.cookies
 
 身份认证端点各自的职责如下：
 
-| 方法 | 路径 | 用途 |
-| --- | --- | --- |
-| `POST` | `/auth/login` | 验证用户密码并设置浏览器 Session Cookie |
-| `POST` | `/auth/register` | 创建账号（`name`、`email`、`password`）；第一个用户为所有者 owner |
-| `POST` | `/auth/tokens` | 为 MCP/API 客户端创建一个具名 Bearer 令牌并指定权限等级 |
-| `GET` | `/auth/tokens` | 列出登录用户拥有的令牌（包含完整的 `value`） |
-| `PATCH` | `/auth/tokens/:id` | 重命名令牌或更改其权限（member 仅限 read/propose） |
-| `DELETE` | `/auth/tokens/:id` | 显式撤销单个 Bearer 令牌 |
-| `POST` | `/auth/logout` | 结束浏览器 Session 而不撤销 Bearer 令牌 |
-| `GET` | `/v1/users` | 列出控制台用户 |
-| `POST` | `/v1/users` | 创建用户（仅限 owner） |
-| `PATCH` | `/v1/users/:id` | 更新姓名、角色或密码 |
-| `DELETE` | `/v1/users/:id` | 删除用户（仅限 owner） |
+| 方法     | 路径               | 用途                                                              |
+| -------- | ------------------ | ----------------------------------------------------------------- |
+| `POST`   | `/auth/login`      | 验证用户密码并设置浏览器 Session Cookie                           |
+| `POST`   | `/auth/register`   | 创建账号（`name`、`email`、`password`）；第一个用户为所有者 owner |
+| `POST`   | `/auth/tokens`     | 为 MCP/API 客户端创建一个具名 Bearer 令牌并指定权限等级           |
+| `GET`    | `/auth/tokens`     | 列出登录用户拥有的令牌（包含完整的 `value`）                      |
+| `PATCH`  | `/auth/tokens/:id` | 重命名令牌或更改其权限（member 仅限 read/propose）                |
+| `DELETE` | `/auth/tokens/:id` | 显式撤销单个 Bearer 令牌                                          |
+| `POST`   | `/auth/logout`     | 结束浏览器 Session 而不撤销 Bearer 令牌                           |
+| `GET`    | `/v1/users`        | 列出控制台用户                                                    |
+| `POST`   | `/v1/users`        | 创建用户（仅限 owner）                                            |
+| `PATCH`  | `/v1/users/:id`    | 更新姓名、角色或密码                                              |
+| `DELETE` | `/v1/users/:id`    | 删除用户（仅限 owner）                                            |
 
 对于远程安装，请使用 HTTPS 端点，例如 `https://kb.example.com/mcp`。在另一台机器上运行的客户端无法访问 OpenKB 主机上的 `localhost`。
 
@@ -74,39 +74,40 @@ X-OpenKB-Agent: codex
 
 ## 可用工具
 
-工具是**按 Bearer 令牌权限门控**的。客户端只能看到请求令牌允许的工具。Schema 保持精简、目标明确的工具列表，更高权限的工具仅暴露给受信任的凭据。
+工具**按 Bearer 令牌进行权限控制**。客户端只能看到请求令牌允许的工具。Schema 保持精简、目标明确的工具列表，更高权限的工具仅暴露给受信任的凭据。
 
-| 权限级别 | 典型工具数量 | 包含的工具 |
-| --- | ---:| --- |
-| `read` | 6 | `openkb_whoami`, `openkb_get_context`, `openkb_search`, `openkb_get_knowledge`, `openkb_list_types`, `openkb_list_versions` |
-| `propose`（新令牌的默认权限） | 9 | read 工具 + `openkb_remember`, `openkb_list_proposals`, `openkb_get_proposal` |
-| `write` | 11 | propose 工具 + `openkb_upsert_knowledge`, `openkb_delete_knowledge` |
+| 权限级别                      | 典型工具数量 | 包含的工具                                                                                                                                              |
+| ----------------------------- | -----------: | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `read`                        |            7 | `openkb_whoami`, `openkb_get_context`, `openkb_search`, `openkb_get_knowledge`, `openkb_list_types`, `openkb_list_technologies`, `openkb_list_versions` |
+| `propose`（新令牌的默认权限） |           10 | read 工具 + `openkb_remember`, `openkb_list_proposals`, `openkb_get_proposal`                                                                           |
+| `write`                       |           12 | propose 工具 + `openkb_upsert_knowledge`, `openkb_delete_knowledge`                                                                                     |
 
 ### Read（读取）工具
 
-| 工具 | 用途 |
-| --- | --- |
-| `openkb_whoami` | 返回解析后的 Agent 名称、令牌拥有者、令牌权限等级、服务器版本以及在该等级下可用的工具 |
-| `openkb_get_context` | **主入口**：获取针对项目和路径最相关的有效知识 |
-| `openkb_search` | 搜索有效知识；省略 `query` 参数可列出有效条目（可选路径/类型过滤） |
-| `openkb_get_knowledge` | 按 slug 获取单个完整的有效知识条目 |
-| `openkb_list_types` | 列出有效的知识类型 |
-| `openkb_list_versions` | 获取单个知识条目的版本历史 |
+| 工具                       | 用途                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------- |
+| `openkb_whoami`            | 返回解析后的 Agent 名称、令牌拥有者、令牌权限等级、服务器版本以及在该等级下可用的工具 |
+| `openkb_get_context`       | **主入口**：获取针对项目和路径最相关的有效知识                                        |
+| `openkb_search`            | 搜索有效知识；省略 `query` 参数可列出有效条目（可选路径/类型过滤）                    |
+| `openkb_get_knowledge`     | 按 slug 获取单个完整的有效知识条目                                                    |
+| `openkb_list_types`        | 列出有效的知识类型                                                                    |
+| `openkb_list_technologies` | 列出管理的技术名称、规范 ID 和别名                                                    |
+| `openkb_list_versions`     | 获取单个知识条目的版本历史                                                            |
 
 ### Propose（提案）工具（可审核的写入）
 
-| 工具 | 用途 |
-| --- | --- |
-| `openkb_remember` | 提议新知识或对现有 slug 的完整替换；在批准前不会更改有效知识 |
-| `openkb_list_proposals` | 列出提案（默认：open 状态） |
-| `openkb_get_proposal` | 按 ID 获取单个提案，包含完整的提议 Markdown |
+| 工具                    | 用途                                                         |
+| ----------------------- | ------------------------------------------------------------ |
+| `openkb_remember`       | 提议新知识或对现有 slug 的完整替换；在批准前不会更改有效知识 |
+| `openkb_list_proposals` | 列出提案（默认：open 状态）                                  |
+| `openkb_get_proposal`   | 按 ID 获取单个提案，包含完整的提议 Markdown                  |
 
 ### Write（写入）工具（仅限 write 令牌）
 
-| 工具 | 用途 |
-| --- | --- |
+| 工具                      | 用途                                     |
+| ------------------------- | ---------------------------------------- |
 | `openkb_upsert_knowledge` | 直接创建或更新 **有效** 知识（跳过审核） |
-| `openkb_delete_knowledge` | 按 slug 删除知识条目 |
+| `openkb_delete_knowledge` | 按 slug 删除知识条目                     |
 
 批准或拒绝提案由人类在 **Web 控制台**（或通过 REST API）完成。Agent 没有 MCP 批准工具。
 
@@ -130,9 +131,18 @@ MCP 客户端会将每个公布的工具 Schema 加载到模型上下文窗口�
 
 使用 `write` 令牌的客户端可以调用 `openkb_upsert_knowledge` 直接保存有效知识。请仅向明确受信任的令牌授予 `write`；提案模式是更安全默认选择。
 
-## 作用域
+## 适用范围
 
-当省略 `projectSlug` 时，知识是全局的。设置 `projectSlug` 可用于项目相关知识。任何知识条目还可以包含 `pathPatterns`。知识归属来源于令牌拥有者；Agent 名称不会过滤检索结果。
+知识编辑器仅提供两种选择：
+
+- **Global（全局）**：不依赖请求的技术栈或任务文本。省略 `scope.stacks` 或使用空数组。未设置项目和路径限制时，anti-slop 等规则适用于所有请求，包括没有声明技术栈的请求。
+- **Technology-specific（技术栈专用）**：请求必须包含所有选中的技术。例如 `scope.stacks` 设置为 `["framework:codeigniter:4", "language:php"]` 时，同时要求 CI4 和 PHP；仅 PHP、Laravel/PHP 或 Vue/TypeScript 均不匹配。
+
+不再根据任务文本与知识标题、摘要、正文的关键词重合情况筛选或排序。无需为知识配置任务字段。旧 `contextPolicy`（`required`、`auto`、`manual`）被忽略，并在规范化时移除；所有适用知识采用相同的返回规则。关键词搜索仍由 `openkb_search` 单独提供。
+
+`projectSlug` 和 `pathPatterns` 可作为两种选择的额外限制。路径使用项目相对路径，旧绝对路径需要明确的 `root`。
+
+调用 `openkb_get_context` 时提供项目、路径和完整声明的 `stack`，无需 task 或 component。名称与别名来自 Technologies 目录，未知别名在 `diagnostics.unknownStack` 中报告。默认预算约 4,000 token，上限 12,000。摘要和预算省略条目通过 `requiredFetch` 提示提取全文；通过 `nextCursor` 获取数量限制下的下一页。`incompleteRequiredContext` 表示当前响应并未包含所有适用知识的全文。跨技术栈比较使用显式 `discovery: true`。
 
 ## 请求示例
 
@@ -149,18 +159,21 @@ curl -s https://kb.example.com/mcp \
 
 ```json
 {
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": {
-    "name": "openkb_get_context",
-    "arguments": {
-      "agentName": "codex",
-      "projectSlug": "openkb",
-      "path": "backend/src/api/app.ts",
-      "limit": 8
-    }
-  },
-  "id": 2
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+        "name": "openkb_get_context",
+        "arguments": {
+            "agentName": "codex",
+            "projectSlug": "openkb",
+            "path": "backend/src/api/app.ts",
+            "pathKind": "file",
+            "stack": ["language:typescript", "framework:vue:3"],
+            "maxTokens": 4000,
+            "responseMode": "adaptive"
+        }
+    },
+    "id": 2
 }
 ```
 
@@ -168,21 +181,29 @@ curl -s https://kb.example.com/mcp \
 
 ```json
 {
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": {
-    "name": "openkb_remember",
-    "arguments": {
-      "title": "Authentication review rule",
-      "summary": "Protected routes must validate bearer tokens before querying the database.",
-      "type": "rule",
-      "projectSlug": "openkb",
-      "pathPatterns": ["backend/src/api/**"],
-      "content": "# Authentication review rule\n\nValidate bearer tokens before protected routes access the database."
-    }
-  },
-  "id": 3
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+        "name": "openkb_remember",
+        "arguments": {
+            "title": "Authentication review rule",
+            "summary": "Protected routes must validate bearer tokens before querying the database.",
+            "type": "rule",
+            "projectSlug": "openkb",
+            "pathPatterns": ["backend/src/api/**"],
+            "content": "# Authentication review rule\n\nValidate bearer tokens before protected routes access the database."
+        }
+    },
+    "id": 3
 }
 ```
 
 提案将在 Web 控制台中可见。批准会创建或更新规范知识条目，并递增其版本号。
+
+## 技术目录
+
+管理员可在 Technologies 添加技术并编辑显示名称与别名。知识编辑器和检索预览使用同一目录的可搜索选择器；登录用户可以读取目录，只有所有者和管理员可以修改。Agent 可调用 `openkb_list_technologies` 查看规范 ID 和别名。
+
+规范 ID（`language:<name>` 或 `framework:<name>:<major>`）创建后不变，修改显示名不会破坏已有知识引用。名称与别名不区分大小写，统一空白字符，且不能被多个技术占用。规范前缀不能作为其他技术的别名。修改会在下一次请求生效，无需重启。尚未登记的规范 ID 仍有效；未登记的自由文本名称不会被猜测。
+
+Technologies 页面位于主菜单 Proposals 下方，使用数据表格和添加/编辑弹窗。迁移 `0004_technologies` 创建目录表及初始数据。

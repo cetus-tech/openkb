@@ -78,9 +78,9 @@ Tools are **permission-gated by the bearer token**. Clients only see tools the r
 
 | Permission | Typical tool count | Tools |
 |---|---:|---|
-| `read` | 6 | `openkb_whoami`, `openkb_get_context`, `openkb_search`, `openkb_get_knowledge`, `openkb_list_types`, `openkb_list_versions` |
-| `propose` (default for new tokens) | 9 | read tools + `openkb_remember`, `openkb_list_proposals`, `openkb_get_proposal` |
-| `write` | 11 | propose tools + `openkb_upsert_knowledge`, `openkb_delete_knowledge` |
+| `read` | 7 | `openkb_whoami`, `openkb_get_context`, `openkb_search`, `openkb_get_knowledge`, `openkb_list_types`, `openkb_list_technologies`, `openkb_list_versions` |
+| `propose` (default for new tokens) | 10 | read tools + `openkb_remember`, `openkb_list_proposals`, `openkb_get_proposal` |
+| `write` | 12 | propose tools + `openkb_upsert_knowledge`, `openkb_delete_knowledge` |
 
 ### Read tools
 
@@ -91,6 +91,7 @@ Tools are **permission-gated by the bearer token**. Clients only see tools the r
 | `openkb_search` | Search active knowledge; omit `query` to list active items (optional path/type filters) |
 | `openkb_get_knowledge` | Fetch one complete active item by slug |
 | `openkb_list_types` | List valid knowledge types |
+| `openkb_list_technologies` | List managed technology names, canonical IDs, and aliases |
 | `openkb_list_versions` | Version history for one knowledge item |
 
 ### Propose tools (reviewable writes)
@@ -130,9 +131,20 @@ Only active knowledge is returned by normal MCP search, context, list, and singl
 
 A client using a `write` token can call `openkb_upsert_knowledge` to save active knowledge directly. Grant `write` only to explicitly trusted tokens; proposal mode is the safer default.
 
-## Scope
+## Applicability
 
-Knowledge is global when `projectSlug` is omitted. Set `projectSlug` for project-related knowledge. Any knowledge item can also include `pathPatterns`. Knowledge attribution comes from the token owner; agent name does not filter retrieval.
+Knowledge has two choices in the editor:
+
+- **Global**: sent regardless of the request's technology stack or task. Omit `scope.stacks` or use an empty array. With no project or path restrictions, rules such as anti-slop apply everywhere, including requests without a declared stack.
+- **Technology-specific**: sent when the request includes **every** selected technology. Store `scope.stacks`, for example `["framework:codeigniter:4", "language:php"]`. PHP alone does not match this item; Laravel/PHP and Vue/TypeScript requests do not receive it.
+
+There is no task field to configure on knowledge and no task relevance comparison. Request task text is not compared with titles, summaries, or content. Previous `contextPolicy` values (`required`, `auto`, `manual`) are ignored and removed on normalization; every applicable item uses the same delivery behavior. Keyword search remains available separately through `openkb_search`.
+
+Optional `projectSlug` and `pathPatterns` remain additional restrictions for either choice. Send project-relative forward-slash paths; legacy absolute paths require an explicit `root`.
+
+Call `openkb_get_context` with project, path, and the complete declared `stack`, for example `["language:typescript", "framework:vue:3"]`. Names and aliases come from the managed Technologies catalog; unknown aliases appear in `diagnostics.unknownStack`. No task or component hint is needed.
+
+The default budget is 4,000 estimated tokens (12,000 ceiling). All applicable knowledge is included in full or as a summary when it fits. A summary or budget omission includes its slug in `requiredFetch`; retrieve its full text with `openkb_get_knowledge`. Follow `nextCursor` for count-limited pages. `incompleteRequiredContext` stays true until the current response contains all applicable full content; never treat a summary or page as complete context. Use explicit `discovery: true` for cross-stack comparisons. Attribution comes from the token owner, not the agent name.
 
 ## Example requests
 
@@ -157,7 +169,10 @@ Retrieve project context:
       "agentName": "codex",
       "projectSlug": "openkb",
       "path": "backend/src/api/app.ts",
-      "limit": 8
+      "pathKind": "file",
+      "stack": ["language:typescript", "framework:vue:3"],
+      "maxTokens": 4000,
+      "responseMode": "adaptive"
     }
   },
   "id": 2
@@ -186,3 +201,11 @@ Remember a new discovery:
 ```
 
 The proposal is visible in the web dashboard. Approval creates or updates the canonical knowledge item and increments its version.
+
+## Technology catalog
+
+Technologies lets administrators add technologies and edit their display names and aliases. The knowledge editor and retrieval preview use searchable catalog pickers. All signed-in users can read the catalog; only owners/admins can change it. Agents can discover it with `openkb_list_technologies`.
+
+Canonical IDs are stable (`language:<name>` or `framework:<name>:<major>`). Renaming a display name does not change saved knowledge. Names and aliases are case-insensitive, whitespace-normalized, and unique across technologies. Canonical prefixes are reserved and cannot be reassigned as aliases. Changes apply on the next request, including MCP, REST, and proposal writes. Explicit canonical IDs remain valid even before a catalog entry is created; unknown free-text names are reported instead of guessed.
+
+The Technologies page is in the main menu directly below Proposals. It uses a data table with add/edit modals. Migration `0004_technologies` creates and seeds the catalog; no runtime technology list is compiled into the server.

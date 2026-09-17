@@ -1,3 +1,4 @@
+import { technologyAliases } from './technologies.js'
 import { createHash } from 'node:crypto'
 import type { Knex } from 'knex'
 import {
@@ -6,6 +7,7 @@ import {
   type KnowledgeStatus,
   type KnowledgeType,
   type KnowledgeScope,
+  normalizeKnowledgeScope,
 } from '../core/index.js'
 
 /* ------------------------------------------------------------------ */
@@ -265,11 +267,11 @@ function parseScope(value: string | KnowledgeScope): KnowledgeScope {
   const raw = (typeof value === 'string' ? JSON.parse(value) : value) as KnowledgeScope & { toolTargets?: unknown }
   // Drop legacy toolTargets if present in stored JSON.
   const { toolTargets: _removed, ...scope } = raw
-  return scope
+  return normalizeKnowledgeScope(scope)
 }
 
 function stringifyScope(value: KnowledgeScope): string {
-  return JSON.stringify(value)
+  return JSON.stringify(normalizeKnowledgeScope(value))
 }
 
 function slugify(value: string): string {
@@ -443,7 +445,7 @@ async function upsertKnowledgeInTransaction(trx: Knex, input: UpsertKnowledgeInp
   const existing = await trx<KnowledgeRow>('knowledge').where({ slug: input.slug }).first()
   const scope: KnowledgeScope = input.scope === undefined
     ? (existing ? parseScope(existing.scope_json) : {})
-    : { ...(input.scope as KnowledgeScope) }
+    : normalizeKnowledgeScope(input.scope, await technologyAliases(trx))
   const latest = existing ? await versionForDocument(trx, existing.id) : undefined
   const versionNumber = (latest?.version_number ?? 0) + 1
 
@@ -827,7 +829,7 @@ export async function createProposal(db: Knex, input: ProposeKnowledgeInput): Pr
   if (openProposal) throw new Error(`An open proposal already exists for knowledge "${proposalSlug}".`)
   const scope: KnowledgeScope = input.scope === undefined
     ? (existing ? parseScope(existing.scope_json) : {})
-    : { ...(input.scope as KnowledgeScope) }
+    : normalizeKnowledgeScope(input.scope, await technologyAliases(db))
   const timestamp = now()
   const proposalId = await insertId(db, 'change_proposals', {
     knowledge_id: existing?.id ?? null,
@@ -946,7 +948,7 @@ export async function updateProposal(
     const summary = input.summary?.trim() || proposal.summary
     const content = input.proposedContentMarkdown ?? input.content ?? proposal.proposed_content_markdown
     const type = input.type || proposal.proposed_type
-    const scopeJson = input.scope ? stringifyScope(input.scope) : proposal.scope_json
+    const scopeJson = input.scope ? stringifyScope(normalizeKnowledgeScope(input.scope, await technologyAliases(trx))) : proposal.scope_json
 
     if (input.status === 'open') {
       if (proposal.status === 'open') {

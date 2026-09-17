@@ -141,6 +141,7 @@ const mobileOpen = computed({
 const activeKey = computed(() => {
   if (route.path === '/dashboard' || route.path === '/dashboard/') return 'dashboard'
   if (route.path.startsWith('/dashboard/knowledge')) return 'knowledge'
+  if (route.path.startsWith('/dashboard/technologies')) return 'technologies'
   if (route.path.startsWith('/dashboard/proposals')) return 'proposals'
   if (route.path.startsWith('/dashboard/agents')) return 'agents'
   if (route.path.startsWith('/dashboard/users')) return 'users'
@@ -170,7 +171,12 @@ const menuOptions = computed<MenuOption[]>(() => [
     label: i18n.t('nav.proposals'),
     icon: renderIcon('i-mdi-source-pull text-lg'),
   },
+
   {
+    key: 'technologies',
+    label: i18n.t('nav.technologies'),
+    icon: () => h('div', { class: 'i-tabler-stack-2' }),
+  },  {
     key: 'agents',
     label: i18n.t('nav.agents'),
     icon: renderIcon('i-mdi-robot text-lg'),
@@ -191,6 +197,7 @@ const routeByKey: Record<string, string> = {
   dashboard: '/dashboard',
   knowledge: '/dashboard/knowledge',
   proposals: '/dashboard/proposals',
+  technologies: '/dashboard/technologies',
   agents: '/dashboard/agents',
   users: '/dashboard/users',
   settings: '/dashboard/settings',

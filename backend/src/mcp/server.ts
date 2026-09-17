@@ -4,7 +4,17 @@ import { ErrorCode, McpError, type CallToolResult } from '@modelcontextprotocol/
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { z, type ZodRawShape } from 'zod'
 import type { KnowledgeService } from '../core/service.js'
-import { knowledgeTypes, isActiveForRetrieval, OPENKB_VERSION, pathMatchesPattern, type Knowledge, type KnowledgeScope } from '../core/index.js'
+import {
+  knowledgeTypes,
+  pathKinds,
+  responseModes,
+  isActiveForRetrieval,
+  OPENKB_VERSION,
+  type ContextQuery,
+  type ContextRetrievalResult,
+  type Knowledge,
+  type KnowledgeScope,
+} from '../core/index.js'
 import type { AgentPermission, ChangeProposal, KnowledgeVersion } from '../db/db-access.js'
 
 type ToolInputShape = ZodRawShape
@@ -14,6 +24,12 @@ interface McpTool {
   description: string
   inputSchema: ToolInputShape
 }
+
+const STACK_FACET_DESCRIPTION =
+  'Declared technology facets. Prefer lower-case canonical values such as language:typescript and framework:vue:3. Names and aliases come from the managed technology catalog; call openkb_list_technologies to discover them. Unregistered aliases remain unknown.'
+
+const KNOWLEDGE_STACKS_DESCRIPTION =
+  'Required technology facets for this knowledge. Prefer canonical values such as language:typescript and framework:vue:3. Names and aliases use the managed technology catalog. Every listed facet must match; omit stacks for global knowledge.'
 
 export interface McpLogger {
   info(obj: object | string, msg?: string): void
@@ -98,22 +114,34 @@ const baseTools: McpTool[] = [
   {
     name: 'openkb_get_context',
     description:
-      'Primary read tool: return the most relevant active knowledge for the current project and file path. Call this before non-trivial work.',
+      'Primary read tool: filter active knowledge by declared project stack and scope, include every applicable item, and deliver it within a token budget. Call this before non-trivial work.',
     inputSchema: {
       projectSlug: z.string().optional().describe('Optional project scope; omit for global knowledge'),
-      path: z.string().optional().describe('Current file path'),
-      limit: z.number().optional().describe('Maximum number of results (default 8)'),
+      path: z.string().optional().describe('Project-relative current file path; compatibility alias for paths'),
+      paths: z.array(z.string()).optional().describe('Project-relative paths for work spanning components'),
+      pathKind: z.enum(pathKinds).optional().describe('Whether the path identifies a file or directory'),
+      root: z.string().optional().describe('Explicit root for normalizing a legacy absolute path'),
+      stack: z.array(z.string()).optional().describe(`Complete declared project stack. ${STACK_FACET_DESCRIPTION}`),
+      maxTokens: z.number().optional().describe('Estimated output token budget, default 4000, maximum 12000'),
+      responseMode: z.enum(responseModes).optional().describe('adaptive, summary, or full; default adaptive'),
+      cursor: z.string().optional().describe('Continuation cursor returned by a previous context response'),
+      limit: z.number().optional().describe('Additional maximum number of optional results, maximum 50'),
     },
   },
   {
     name: 'openkb_search',
     description:
-      'Search active knowledge by words in slug, title, summary, type, or content. Omit query to list active items. Narrow with projectSlug, path, or type.',
+      'Search active knowledge by words in slug, title, summary, type, or content. Contextual filters run before ranking and limits. Omit query to list applicable items; set discovery for an explicit broader search.',
     inputSchema: {
       query: z.string().optional().describe('Words to search for; omit or leave empty to list active knowledge'),
       limit: z.number().optional().describe('Maximum number of results (default 10)'),
       projectSlug: z.string().optional().describe('Optional project scope; omit for global knowledge'),
-      path: z.string().optional().describe('Optional current file path'),
+      path: z.string().optional().describe('Optional project-relative current file path'),
+      paths: z.array(z.string()).optional().describe('Optional project-relative paths'),
+      pathKind: z.enum(pathKinds).optional(),
+      root: z.string().optional().describe('Explicit root for normalizing a legacy absolute path'),
+      stack: z.array(z.string()).optional().describe(`Complete declared project stack. ${STACK_FACET_DESCRIPTION}`),
+      discovery: z.boolean().optional().describe('Explicitly include stack-incompatible active items for discovery'),
       type: z.string().optional().describe('Optional knowledge type filter'),
     },
   },
@@ -123,6 +151,11 @@ const baseTools: McpTool[] = [
     inputSchema: {
       slug: z.string().describe('Stable knowledge slug'),
     },
+  },
+  {
+    name: 'openkb_list_technologies',
+    description: 'List managed technology names, canonical IDs, and accepted aliases for stack declarations and knowledge scopes.',
+    inputSchema: {},
   },
   {
     name: 'openkb_list_types',
@@ -153,6 +186,7 @@ const proposeTools: McpTool[] = [
       type: z.string().optional().describe('Knowledge type (default context)'),
       projectSlug: z.string().optional().describe('Optional project scope; omit for global knowledge'),
       pathPatterns: z.array(z.string()).optional().describe('Optional path globs this knowledge applies to'),
+      stacks: z.array(z.string()).optional().describe(KNOWLEDGE_STACKS_DESCRIPTION),
     },
   },
   {
@@ -185,6 +219,7 @@ const writeTools: McpTool[] = [
       type: z.string().optional().describe('Knowledge type (default context)'),
       projectSlug: z.string().optional(),
       pathPatterns: z.array(z.string()).optional(),
+      stacks: z.array(z.string()).optional().describe(KNOWLEDGE_STACKS_DESCRIPTION),
     },
   },
   {
@@ -212,39 +247,44 @@ export function toolsForPermission(permission: AgentPermission): McpTool[] {
   }))
 }
 
-function textResult(text: string): CallToolResult {
-  return { content: [{ type: 'text', text }] }
+function textResult(text: string, structuredContent?: Record<string, unknown>): CallToolResult {
+  return {
+    content: [{ type: 'text', text }],
+    ...(structuredContent ? { structuredContent } : {}),
+  }
+}
+
+function formatScope(scope: KnowledgeScope): string {
+  return [
+    scope.projectSlug ? `project: ${scope.projectSlug}` : 'global',
+    ...(scope.pathPatterns?.length ? [`paths: ${scope.pathPatterns.join(', ')}`] : []),
+    ...(scope.stacks?.length ? [`stacks: ${scope.stacks.join(', ')}`] : []),
+  ].join(' | ')
 }
 
 function formatDocFull(doc: Knowledge): string {
-  const scope = [
-    doc.scope.projectSlug ? `project: ${doc.scope.projectSlug}` : 'global',
-    ...(doc.scope.pathPatterns?.length ? [`paths: ${doc.scope.pathPatterns.join(', ')}`] : []),
-  ].join(' | ')
-  return `# ${doc.title}\nslug: ${doc.slug}\ntype: ${doc.type}\nstatus: ${doc.status}\nversion: ${doc.version}\nscope: ${scope}\nsummary: ${doc.summary}\n\n${doc.content}`
+  return `# ${doc.title}\nslug: ${doc.slug}\ntype: ${doc.type}\nstatus: ${doc.status}\nversion: ${doc.version}\nscope: ${formatScope(doc.scope)}\nsummary: ${doc.summary}\n\n${doc.content}`
+}
+
+function formatDocSummary(doc: Knowledge, reason: string): string {
+  return `- **${doc.title}** (\`${doc.slug}\`) - ${doc.type} v${doc.version}\n  ${doc.summary}\n  delivery: summary; reason: ${reason}; fetch with openkb_get_knowledge(slug="${doc.slug}")`
 }
 
 function formatDocList(doc: Knowledge): string {
-  const scope = doc.scope.projectSlug ? `project:${doc.scope.projectSlug}` : 'global'
-  return `- **${doc.title}** (\`${doc.slug}\`) - ${doc.type} v${doc.version} [${scope}]`
+  return `- **${doc.title}** (\`${doc.slug}\`) - ${doc.type} v${doc.version} [${formatScope(doc.scope)}]`
 }
 
 function formatProposal(proposal: ChangeProposal): string {
-  const scope = proposal.scope.projectSlug ? `project:${proposal.scope.projectSlug}` : 'global'
-  return `- **${proposal.title}** (\`${proposal.slug}\`) - ${proposal.status} [${scope}] id:${proposal.id}${proposal.createdBy ? ` by ${proposal.createdBy}` : ''}\n  ${proposal.summary}`
+  return `- **${proposal.title}** (\`${proposal.slug}\`) - ${proposal.status} [${formatScope(proposal.scope)}] id:${proposal.id}${proposal.createdBy ? ` by ${proposal.createdBy}` : ''}\n  ${proposal.summary}`
 }
 
 function formatProposalFull(proposal: ChangeProposal): string {
-  const scope = [
-    proposal.scope.projectSlug ? `project: ${proposal.scope.projectSlug}` : 'global',
-    ...(proposal.scope.pathPatterns?.length ? [`paths: ${proposal.scope.pathPatterns.join(', ')}`] : []),
-  ].join(' | ')
   const meta = [
     `id: ${proposal.id}`,
     `slug: ${proposal.slug}`,
     `type: ${proposal.type}`,
     `status: ${proposal.status}`,
-    `scope: ${scope}`,
+    `scope: ${formatScope(proposal.scope)}`,
     `summary: ${proposal.summary}`,
     proposal.createdBy ? `createdBy: ${proposal.createdBy}` : undefined,
     `createdAt: ${proposal.createdAt}`,
@@ -269,11 +309,42 @@ function stringArrayArg(value: unknown): string[] | undefined {
 
 function scopeFromArgs(args: Record<string, unknown>): KnowledgeScope | undefined {
   const pathPatterns = stringArrayArg(args.pathPatterns)
+  const hasStacks = Object.prototype.hasOwnProperty.call(args, 'stacks')
+  const stacks = hasStacks ? stringArrayArg(args.stacks) ?? [] : undefined
   const scope: KnowledgeScope = {
     ...(args.projectSlug ? { projectSlug: String(args.projectSlug) } : {}),
     ...(pathPatterns ? { pathPatterns } : {}),
+    ...(hasStacks ? { stacks } : {}),
   }
   return Object.keys(scope).length ? scope : undefined
+}
+
+function contextQueryFromArgs(args: Record<string, unknown>, options: { legacyMode?: boolean } = {}): ContextQuery {
+  const stack = stringArrayArg(args.stack)
+  const paths = stringArrayArg(args.paths)
+  const responseMode = typeof args.responseMode === 'string' && responseModes.includes(args.responseMode as never)
+    ? args.responseMode as ContextQuery['responseMode']
+    : undefined
+  const pathKind = typeof args.pathKind === 'string' && pathKinds.includes(args.pathKind as never)
+    ? args.pathKind as ContextQuery['pathKind']
+    : undefined
+  return {
+    projectSlug: args.projectSlug ? String(args.projectSlug) : undefined,
+    path: args.path ? String(args.path) : undefined,
+    paths,
+    pathKind,
+    root: args.root ? String(args.root) : undefined,
+    stack,
+    component: args.component ? String(args.component) : undefined,
+    task: args.task ? String(args.task) : undefined,
+    type: args.type ? String(args.type) : undefined,
+    maxTokens: args.maxTokens == null ? undefined : Number(args.maxTokens),
+    responseMode,
+    cursor: args.cursor ? String(args.cursor) : undefined,
+    limit: args.limit == null ? undefined : Number(args.limit),
+    discovery: args.discovery === true,
+    ...(options.legacyMode ? { legacyMode: true } : {}),
+  }
 }
 
 /** Creator attribution: token owner email (server-known), not client-asserted. */
@@ -283,18 +354,27 @@ function creatorAttribution(agent: AgentIdentity): string {
   return agent.agentName
 }
 
-function filterKnowledge(docs: Knowledge[], args: Record<string, unknown>): Knowledge[] {
-  const projectSlug = args.projectSlug ? String(args.projectSlug) : undefined
-  const path = args.path ? String(args.path) : undefined
-  const type = args.type ? String(args.type) : undefined
-  // Agent identity is only for permissions; retrieval uses project/path/type.
-  return docs.filter((doc) => {
-    if (!isActiveForRetrieval(doc)) return false
-    if (projectSlug && doc.scope.projectSlug && doc.scope.projectSlug !== projectSlug) return false
-    if (type && doc.type !== type) return false
-    if (path && doc.scope.pathPatterns?.length && !doc.scope.pathPatterns.some((pattern) => pathMatchesPattern(path, pattern))) return false
-    return true
-  })
+
+
+function contextStructured(result: ContextRetrievalResult): Record<string, unknown> {
+  return {
+    eligibleCount: result.eligibleCount,
+    returnedCount: result.returnedCount,
+    omittedCount: result.omittedCount,
+    omittedByBudget: result.omittedByBudget,
+    omittedByLimit: result.omittedByLimit,
+    requiredFetch: result.requiredFetch,
+    incompleteRequiredContext: result.incompleteRequiredContext,
+    ...(result.cursor ? { cursor: result.cursor } : {}),
+    ...(result.nextCursor ? { nextCursor: result.nextCursor } : {}),
+    estimatedTokens: result.estimatedTokens,
+    estimatedBytes: result.estimatedBytes,
+    maxBytes: result.maxBytes,
+    maxTokens: result.maxTokens,
+    tokenEstimator: result.tokenEstimator,
+    responseMode: result.responseMode,
+    diagnostics: result.diagnostics,
+  }
 }
 
 async function resolveAgent(
@@ -349,28 +429,54 @@ async function handleToolCall(service: KnowledgeService, tool: string, args: Rec
       }
       case 'openkb_search': {
         const query = String(args.query ?? '').trim()
-        const limit = Math.min(Math.max(Number(args.limit ?? 10), 1), 50)
-        const candidates = query
-          ? await service.searchKnowledge(query, 1000)
-          : await service.listKnowledge()
-        const docs = filterKnowledge(candidates, args).slice(0, limit)
+        const context = contextQueryFromArgs(args, { legacyMode: !args.stack && !args.discovery })
+        if (context.limit === undefined) context.limit = 10
+        const searchResult = await service.searchKnowledgeWithContext(query, context)
+        const docs = searchResult.knowledge
         if (!docs.length) {
-          result = textResult(query ? 'No matching knowledge found.' : 'No knowledge items found.')
+          const diagnostic = searchResult.diagnostics.missingStack
+            ? ' A declared project stack is required to retrieve stack-specific knowledge.'
+            : ''
+          result = textResult(query ? `No matching knowledge found.${diagnostic}` : `No applicable knowledge items found.${diagnostic}`, {
+            eligibleCount: searchResult.eligibleCount,
+            matchedCount: searchResult.matchedCount,
+            omittedCount: searchResult.omittedCount,
+            diagnostics: searchResult.diagnostics,
+          })
         } else if (query) {
-          result = textResult(docs.map(formatDocFull).join('\n\n---\n\n'))
+          result = textResult(docs.map(formatDocFull).join('\n\n---\n\n'), {
+            eligibleCount: searchResult.eligibleCount,
+            matchedCount: searchResult.matchedCount,
+            omittedCount: searchResult.omittedCount,
+            diagnostics: searchResult.diagnostics,
+          })
         } else {
-          result = textResult(`Found ${docs.length} knowledge item(s):\n\n${docs.map(formatDocList).join('\n')}`)
+          result = textResult(`Found ${docs.length} knowledge item(s):\n\n${docs.map(formatDocList).join('\n')}`, {
+            eligibleCount: searchResult.eligibleCount,
+            matchedCount: searchResult.matchedCount,
+            omittedCount: searchResult.omittedCount,
+            diagnostics: searchResult.diagnostics,
+          })
         }
         break
       }
       case 'openkb_get_context': {
-        // Retrieval uses project/path scope only.
-        const docs = await service.getContext({
-          projectSlug: args.projectSlug ? String(args.projectSlug) : undefined,
-          path: args.path ? String(args.path) : undefined,
-          limit: Math.min(Math.max(Number(args.limit ?? 8), 1), 50),
-        })
-        result = textResult(docs.length ? docs.map(formatDocFull).join('\n\n---\n\n') : 'No relevant knowledge found for this context.')
+        const context = contextQueryFromArgs(args)
+        const retrieval = await service.getContextResult(context)
+        const body = retrieval.entries.map((entry) => entry.delivery === 'full'
+          ? formatDocFull(entry.doc)
+          : formatDocSummary(entry.doc, entry.reason)).join('\n\n---\n\n')
+        const notices: string[] = []
+        if (retrieval.requiredFetch.length) {
+          notices.push(`Fetch full applicable knowledge before continuing: ${retrieval.requiredFetch.map((slug) => `openkb_get_knowledge(slug="${slug}")`).join(', ')}`)
+        }
+        if (retrieval.nextCursor) notices.push(`More applicable knowledge is available. Continue with cursor: ${retrieval.nextCursor}`)
+        if (retrieval.diagnostics.missingStack) notices.push('Stack-specific knowledge was omitted because the declared project stack is missing or unresolved.')
+        const text = [
+          body || 'No relevant knowledge found for this context.',
+          notices.join('\n'),
+        ].filter(Boolean).join('\n\n')
+        result = textResult(text, contextStructured(retrieval))
         break
       }
       case 'openkb_get_knowledge': {
@@ -379,6 +485,11 @@ async function handleToolCall(service: KnowledgeService, tool: string, args: Rec
         const doc = await service.getKnowledge(slug)
         if (!doc || !isActiveForRetrieval(doc)) throw { code: -32602, message: `Active knowledge "${slug}" not found.` }
         result = textResult(formatDocFull(doc))
+        break
+      }
+      case 'openkb_list_technologies': {
+        const technologies = await service.listTechnologies()
+        result = textResult(JSON.stringify({ technologies }))
         break
       }
       case 'openkb_list_types':

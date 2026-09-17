@@ -237,6 +237,7 @@
                                             size="small" />
                                     </div>
                                 </div>
+                                <KnowledgeApplicabilityFields :model="editApplicabilityForm" @update:model="updateApplicability" />
                             </div>
                             <div>
                                 <label
@@ -375,6 +376,16 @@
                                     :bordered="false"
                                     >{{ pattern }}</n-tag
                                 >
+                            </div>
+                        </div>
+                        <div v-if="proposal.scope?.stacks?.length">
+                            <p class="text-xs font-medium uppercase tracking-wide text-gray-400">
+                                Required technologies
+                            </p>
+                            <div class="mt-1 flex flex-wrap gap-1">
+                                <n-tag size="small" type="info" :bordered="false">
+                                    {{ proposal.scope.stacks.join(', ') }}
+                                </n-tag>
                             </div>
                         </div>
                     </div>
@@ -525,6 +536,8 @@
 </template>
 
 <script setup lang="ts">
+import KnowledgeApplicabilityFields from './components/knowledge/KnowledgeApplicabilityFields.vue';
+import { emptyKnowledgeForm, type KnowledgeFormModel } from '@/utils/knowledgeForm';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDialog, useMessage } from 'naive-ui';
@@ -562,6 +575,8 @@ const editType = ref('context');
 const editScopeMode = ref<'global' | 'project'>('global');
 const editProjectSlug = ref('');
 const editPathPatterns = ref('');
+const editApplicabilityMode = ref<'any' | 'selected'>('any');
+const editStacks = ref('');
 
 const typeOptions = [
     { label: 'Rule', value: 'rule' },
@@ -571,22 +586,43 @@ const typeOptions = [
     { label: 'Project', value: 'project' },
 ];
 
+const editApplicabilityForm = computed(() => ({
+    ...emptyKnowledgeForm(),
+    applicabilityMode: editApplicabilityMode.value,
+    stacks: editStacks.value,
+}));
+function updateApplicability(form: KnowledgeFormModel) {
+    editApplicabilityMode.value = form.applicabilityMode;
+    editStacks.value = form.stacks;
+}
+
 function getEditScopePayload() {
-    if (editScopeMode.value === 'global') {
-        return { projectSlug: undefined, pathPatterns: [] };
-    }
-    const projectSlug = editProjectSlug.value.trim() || undefined;
-    const pathPatterns = editPathPatterns.value
+    const projectScope = editScopeMode.value === 'global'
+        ? { projectSlug: undefined, pathPatterns: [] }
+        : {
+              projectSlug: editProjectSlug.value.trim() || undefined,
+              pathPatterns: editPathPatterns.value
+                  .split(',')
+                  .map((p) => p.trim())
+                  .filter(Boolean),
+          };
+    const stacks = editStacks.value
         .split(',')
         .map((p) => p.trim())
         .filter(Boolean);
-    return { projectSlug, pathPatterns };
+    if (editApplicabilityMode.value === 'selected' && !stacks.length) {
+        throw new Error('Enter at least one required technology');
+    }
+    return {
+        ...projectScope,
+        ...(editApplicabilityMode.value === 'selected' && stacks.length ? { stacks } : {}),
+    };
 }
 
 const hasScope = computed(() => {
     const scope = proposal.value?.scope;
     if (!scope) return false;
-    return Boolean(scope.projectSlug || scope.pathPatterns?.length);
+    return Boolean(scope.projectSlug || scope.pathPatterns?.length || scope.stacks?.length);
 });
 
 const scopeTag = computed(() => {
@@ -631,6 +667,8 @@ function startEditing() {
         editProjectSlug.value = '';
         editPathPatterns.value = '';
     }
+    editApplicabilityMode.value = scope?.stacks?.length ? 'selected' : 'any';
+    editStacks.value = (scope?.stacks || []).join(', ');
     isEditing.value = true;
 }
 

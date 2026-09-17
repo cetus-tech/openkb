@@ -1,3 +1,4 @@
+import { TechnologyValidationError } from '../db/technologies.js';
 import Fastify from 'fastify';
 import sensible from '@fastify/sensible';
 import cors from '@fastify/cors';
@@ -6,7 +7,14 @@ import type { FastifyRequest } from 'fastify';
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { resolve, extname, relative } from 'path';
 import { fileURLToPath } from 'url';
-import { OPENKB_VERSION, knowledgeTypes } from '../core/index.js';
+import {
+    OPENKB_VERSION,
+    knowledgeTypes,
+    pathKinds,
+    responseModes,
+    type ContextQuery,
+    type KnowledgeScope,
+} from '../core/index.js';
 import { serveStatic } from './static.js';
 import type { KnowledgeService } from '../core/service.js';
 import { isAdminRole, type UserRole } from './auth.js';
@@ -31,7 +39,7 @@ const DOC_ORDER: Record<string, number> = {
     'integrations/chatgpt': 7,
     'integrations/antigravity': 8,
     'concepts/overview': 9,
-    'concepts/knowledge-lifecycle': 10,
+    'concepts/knowledge-retrieval': 10,
     'concepts/permissions': 11,
     'introduction/project-structure': 12,
     'development/contributing': 13,
@@ -53,6 +61,76 @@ function isAdmin(request: FastifyRequest): boolean {
 function currentUserEmail(request: FastifyRequest): string | undefined {
     const authContext = (request as FastifyRequest & { authContext?: { userEmail?: string } }).authContext;
     return authContext?.userEmail;
+}
+
+function queryValue(value: unknown): string | undefined {
+    if (Array.isArray(value)) return queryValue(value[0]);
+    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function queryList(value: unknown): string[] | undefined {
+    const values = Array.isArray(value) ? value : value === undefined ? [] : [value];
+    const items = values
+        .flatMap((item) => String(item).split(','))
+        .map((item) => item.trim())
+        .filter(Boolean);
+    return items.length ? items : undefined;
+}
+
+function numberQuery(value: unknown): number | undefined {
+    const text = queryValue(value);
+    if (!text) return undefined;
+    const number = Number(text);
+    return Number.isFinite(number) ? number : undefined;
+}
+
+function contextQueryFromHttp(query: Record<string, unknown>): ContextQuery {
+    const path = queryValue(query.path);
+    const paths = queryList(query.paths);
+    const stack = queryList(query.stack ?? query.stacks);
+    const pathKind = queryValue(query.pathKind);
+    const responseMode = queryValue(query.responseMode);
+    return {
+        projectSlug: queryValue(query.projectSlug ?? query.project),
+        path,
+        paths,
+        pathKind: pathKinds.includes(pathKind as never)
+            ? pathKind as ContextQuery['pathKind']
+            : undefined,
+        root: queryValue(query.root),
+        stack,
+        component: queryValue(query.component),
+        task: queryValue(query.task),
+        type: queryValue(query.type),
+        maxTokens: numberQuery(query.maxTokens),
+        responseMode: responseModes.includes(responseMode as never)
+            ? responseMode as ContextQuery['responseMode']
+            : undefined,
+        cursor: queryValue(query.cursor),
+        limit: numberQuery(query.limit),
+        discovery: queryValue(query.discovery) === 'true',
+    };
+}
+
+/** Validate scope fields at the REST boundary. */
+function scopePayload(value: unknown): Partial<KnowledgeScope> | undefined {
+    if (value === undefined) return undefined;
+    if (value === null) return {};
+    if (typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error('scope must be an object or null');
+    }
+    const scope = value as Record<string, unknown>;
+    if (scope.projectSlug !== undefined && typeof scope.projectSlug !== 'string') {
+        throw new Error('scope.projectSlug must be a string');
+    }
+    if (scope.pathPatterns !== undefined && (!Array.isArray(scope.pathPatterns) || scope.pathPatterns.some((item) => typeof item !== 'string'))) {
+        throw new Error('scope.pathPatterns must be an array of strings');
+    }
+    if (scope.stacks !== undefined && (!Array.isArray(scope.stacks) || scope.stacks.some((item) => typeof item !== 'string'))) {
+        throw new Error('scope.stacks must be an array of strings');
+    }
+
+    return value as Partial<KnowledgeScope>;
 }
 
 function compareDocs(a: DocEntry, b: DocEntry): number {
@@ -358,6 +436,12 @@ export function buildApp(service?: KnowledgeService) {
         const type = body.type ?? 'context';
         if (!knowledgeTypes.includes(type as never))
             return reply.badRequest(`Unsupported knowledge type: ${type}`);
+        let scope: Partial<KnowledgeScope> | undefined;
+        try {
+            scope = scopePayload(body.scope);
+        } catch (error) {
+            return reply.badRequest(error instanceof Error ? error.message : 'Invalid scope');
+        }
         const knowledge = await service.upsertKnowledge({
             slug: body.slug,
             title: body.title,
@@ -365,7 +449,7 @@ export function buildApp(service?: KnowledgeService) {
             type: type as never,
             status: body.status,
             content: body.content,
-            scope: body.scope,
+            scope,
             changeSummary: body.changeSummary,
             // Attribution is server-derived from the authenticated user, never client-supplied.
             createdBy: currentUserEmail(request),
@@ -426,28 +510,98 @@ export function buildApp(service?: KnowledgeService) {
 
     app.get('/v1/search', async (request) => {
         if (!service) return { knowledge: [] };
-        const query = request.query as { q?: string; limit?: string };
+        const query = request.query as Record<string, unknown>;
+        const context = contextQueryFromHttp(query);
+        const hasContext = [
+            context.projectSlug,
+            context.path,
+            context.paths?.length,
+            context.stack?.length,
+            context.component,
+            context.task,
+            context.type,
+            context.pathKind,
+            context.root,
+            context.maxTokens,
+            context.responseMode,
+            context.cursor,
+            context.discovery,
+        ].some(Boolean);
+        if (!hasContext) {
+            return {
+                knowledge: await service.searchKnowledge(
+                    queryValue(query.q) ?? '',
+                    numberQuery(query.limit) ?? 10,
+                ),
+            };
+        }
+        if (context.limit === undefined) context.limit = 10;
+        const result = await service.searchKnowledgeWithContext(queryValue(query.q) ?? '', context);
         return {
-            knowledge: await service.searchKnowledge(
-                query.q ?? '',
-                Number(query.limit ?? 10),
-            ),
+            knowledge: result.knowledge,
+            eligibleCount: result.eligibleCount,
+            matchedCount: result.matchedCount,
+            omittedCount: result.omittedCount,
+            diagnostics: result.diagnostics,
         };
+    });
+
+    app.get('/v1/technologies', async (_request, reply) => {
+        if (!service) return reply.serviceUnavailable();
+        return { technologies: await service.listTechnologies() };
+    });
+
+    app.put('/v1/technologies/:facet', async (request, reply) => {
+        if (!service) return reply.serviceUnavailable();
+        if (!isAdmin(request)) return reply.forbidden('Admin role required');
+        const { facet } = request.params as { facet: string };
+        const body = (request.body ?? {}) as { label?: unknown; aliases?: unknown };
+        try {
+            return { technology: await service.saveTechnology(facet, body) };
+        } catch (error) {
+            if (error instanceof TechnologyValidationError) return reply.badRequest(error.message);
+            throw error;
+        }
     });
 
     app.get('/v1/context', async (request) => {
         if (!service) return { knowledge: [] };
-        const query = request.query as {
-            path?: string;
-            project?: string;
-            limit?: string;
+        const rawQuery = request.query as Record<string, unknown>;
+        const context = contextQueryFromHttp(rawQuery);
+        const result = await service.getContextResult(context);
+        return {
+            // Summary deliveries never leak their full body through the
+            // compatibility array; callers can fetch the slug explicitly.
+            knowledge: result.entries.map((entry) => entry.delivery === 'full'
+                ? entry.doc
+                : { ...entry.doc, content: '' }),
+            entries: result.entries.map((entry) => ({
+                slug: entry.doc.slug,
+                title: entry.doc.title,
+                summary: entry.doc.summary,
+                type: entry.doc.type,
+                delivery: entry.delivery,
+                required: entry.required,
+                estimatedTokens: entry.estimatedTokens,
+                reason: entry.reason,
+            })),
+            eligibleCount: result.eligibleCount,
+            returnedCount: result.returnedCount,
+            omittedCount: result.omittedCount,
+            omittedByBudget: result.omittedByBudget,
+            omittedByLimit: result.omittedByLimit,
+            requiredFetch: result.requiredFetch,
+            incompleteRequiredContext: result.incompleteRequiredContext,
+            ...(result.cursor ? { cursor: result.cursor } : {}),
+            ...(result.nextCursor ? { nextCursor: result.nextCursor } : {}),
+            estimatedTokens: result.estimatedTokens,
+            estimatedBytes: result.estimatedBytes,
+            maxBytes: result.maxBytes,
+            maxTokens: result.maxTokens,
+            tokenEstimator: result.tokenEstimator,
+            responseMode: result.responseMode,
+            diagnostics: result.diagnostics,
         };
-        const knowledge = await service.getContext({
-            path: query.path,
-            projectSlug: query.project,
-            limit: Number(query.limit ?? 10),
-        });
-        return { knowledge };
     });
 
     app.post('/v1/proposals', async (request, reply) => {
@@ -466,6 +620,12 @@ export function buildApp(service?: KnowledgeService) {
         const type = body.type ?? 'context';
         if (!knowledgeTypes.includes(type as never))
             return reply.badRequest(`Unsupported knowledge type: ${type}`);
+        let scope: Partial<KnowledgeScope> | undefined;
+        try {
+            scope = scopePayload(body.scope);
+        } catch (error) {
+            return reply.badRequest(error instanceof Error ? error.message : 'Invalid scope');
+        }
         try {
             const proposal = await service.proposeKnowledge({
                 slug: body.slug,
@@ -473,7 +633,7 @@ export function buildApp(service?: KnowledgeService) {
                 summary: body.summary,
                 type: type as never,
                 content: body.content,
-                scope: body.scope,
+                scope,
                 createdBy: currentUserEmail(request),
             });
             return reply.code(201).send({ proposal });
@@ -537,10 +697,18 @@ export function buildApp(service?: KnowledgeService) {
         if (body.status !== undefined && !isAdmin(request)) {
             return reply.forbidden('Admin role required');
         }
+        let proposalInput = body;
+        if (Object.prototype.hasOwnProperty.call(body, 'scope')) {
+            try {
+                proposalInput = { ...body, scope: scopePayload(body.scope) };
+            } catch (error) {
+                return reply.badRequest(error instanceof Error ? error.message : 'Invalid scope');
+            }
+        }
         try {
             const proposal = await service.updateProposal(
                 params.id,
-                body as any,
+                proposalInput as any,
             );
             if (!proposal)
                 return reply.notFound(`Proposal not found: ${params.id}`);

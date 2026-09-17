@@ -51,7 +51,7 @@ describe('api app', () => {
       'integrations/chatgpt',
       'integrations/antigravity',
       'concepts/overview',
-      'concepts/knowledge-lifecycle',
+      'concepts/knowledge-retrieval',
       'concepts/permissions',
       'introduction/project-structure',
       'development/contributing',
@@ -207,6 +207,53 @@ describe('api app', () => {
       })
       expect(refuseLast.statusCode).toBe(400)
 
+    } finally {
+      await db.destroy()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('stores top-level stack requirements and treats an empty scope as global', async () => {
+    const { app, db, dir, auth } = await testApp()
+    try {
+      const stackSpecific = await app.inject({
+        method: 'POST',
+        url: '/v1/knowledge',
+        headers: auth.headers,
+        payload: {
+          slug: 'vue-api-rule',
+          title: 'Vue API Rule',
+          summary: 'Vue API guidance',
+          content: 'Use Vue API patterns.',
+          scope: { stacks: ['Vue 3'] },
+        },
+      })
+      expect(stackSpecific.statusCode).toBe(201)
+      expect(stackSpecific.json().knowledge.scope).toEqual({ stacks: ['framework:vue:3'] })
+
+      const global = await app.inject({
+        method: 'POST',
+        url: '/v1/knowledge',
+        headers: auth.headers,
+        payload: {
+          slug: 'global-api-rule',
+          title: 'Global API Rule',
+          summary: 'Global API guidance',
+          content: 'Use global API patterns.',
+          scope: {},
+        },
+      })
+      expect(global.statusCode).toBe(201)
+      expect(global.json().knowledge.scope).toEqual({})
+
+      const context = await app.inject({
+        method: 'GET',
+        url: '/v1/context?stack=framework:vue:3',
+        headers: auth.headers,
+      })
+      const slugs = context.json().knowledge.map((item: { slug: string }) => item.slug)
+      expect(slugs).toContain('vue-api-rule')
+      expect(slugs).toContain('global-api-rule')
     } finally {
       await db.destroy()
       await rm(dir, { recursive: true, force: true })

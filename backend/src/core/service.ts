@@ -1,3 +1,4 @@
+import { listTechnologies, saveTechnology, technologyAliases, type Technology } from '../db/technologies.js'
 import type { Knex } from 'knex'
 import {
   getKnowledge,
@@ -44,9 +45,20 @@ import {
   type UpdateKnowledgeGroupInput,
   type ReorderKnowledgeGroupItem,
 } from '../db/db-access.js'
-import { searchKnowledge, selectContextKnowledge, type ContextQuery, type Knowledge } from '../core/index.js'
+import {
+  searchKnowledge,
+  searchKnowledgeWithContext,
+  selectContextKnowledge,
+  selectContextKnowledgeResult,
+  type ContextQuery,
+  type ContextRetrievalResult,
+  type ContextSearchResult,
+  type Knowledge,
+} from '../core/index.js'
 
 export interface KnowledgeService {
+  listTechnologies(): Promise<Technology[]>
+  saveTechnology(facet: string, input: { label?: unknown; aliases?: unknown }): Promise<Technology>
   /* knowledge */
   listKnowledge(): Promise<Knowledge[]>
   listKnowledgePage(options?: KnowledgeListOptions): Promise<KnowledgePage>
@@ -54,6 +66,8 @@ export interface KnowledgeService {
   listDocumentVersions(slugOrId: string, options?: VersionListOptions): Promise<KnowledgeVersionPage | undefined>
   searchKnowledge(query: string, limit?: number): Promise<Knowledge[]>
   getContext(query: ContextQuery): Promise<Knowledge[]>
+  getContextResult(query?: ContextQuery): Promise<ContextRetrievalResult>
+  searchKnowledgeWithContext(query: string, context?: ContextQuery): Promise<ContextSearchResult>
   upsertKnowledge(input: UpsertKnowledgeInput): Promise<Knowledge>
   deleteKnowledge(slug: string): Promise<boolean>
   deleteKnowledgeVersion(slug: string, versionId: string): Promise<DeleteKnowledgeVersionResult>
@@ -85,6 +99,8 @@ export interface KnowledgeService {
 
 export function createKnowledgeService(db: Knex): KnowledgeService {
   return {
+    listTechnologies: () => listTechnologies(db),
+    saveTechnology: (facet, input) => saveTechnology(db, facet, input),
     listKnowledge: () => listKnowledge(db),
     listKnowledgePage: (options) => listKnowledgePage(db, options),
     getKnowledge: (slugOrId) => getKnowledge(db, slugOrId),
@@ -93,7 +109,13 @@ export function createKnowledgeService(db: Knex): KnowledgeService {
       return searchKnowledge(await listKnowledge(db), query, limit)
     },
     async getContext(query) {
-      return selectContextKnowledge(await listKnowledge(db), query)
+      return selectContextKnowledge(await listKnowledge(db), { ...query, stackAliases: await technologyAliases(db) })
+    },
+    async getContextResult(query = {}) {
+      return selectContextKnowledgeResult(await listKnowledge(db), { ...query, stackAliases: await technologyAliases(db) })
+    },
+    async searchKnowledgeWithContext(query, context = {}) {
+      return searchKnowledgeWithContext(await listKnowledge(db), query, { ...context, stackAliases: await technologyAliases(db) })
     },
     upsertKnowledge: (input) => upsertKnowledge(db, input),
     deleteKnowledge: (slug) => deleteKnowledge(db, slug),

@@ -9,6 +9,7 @@ import {
     deleteKnowledgeGroup,
     deleteKnowledgeVersion,
     getKnowledge,
+    getProposal,
     listKnowledge,
     listKnowledgeGroups,
     listKnowledgePage,
@@ -123,6 +124,49 @@ describe('db repository', () => {
             expect(page.knowledge).toHaveLength(2);
             expect(filtered.total).toBe(1);
             expect(filtered.knowledge[0].slug).toBe('third-runbook');
+        } finally {
+            await db.destroy();
+            await rm(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('round-trips stack scope and delivery metadata through versions and approval', async () => {
+        const { dir, db } = await sqliteDb();
+        try {
+            const created = await upsertKnowledge(db, {
+                slug: 'vue-rule',
+                title: 'Vue Rule',
+                summary: 'Vue guidance',
+                type: 'rule',
+                content: 'Use Vue 3 patterns.',
+                scope: {
+                    stacks: ['Vue 3', 'language:typescript'],
+                    contextPolicy: 'required',
+                },
+            });
+            expect(created.scope).toEqual({
+                stacks: ['framework:vue:3', 'language:typescript'],
+            });
+
+            const proposal = await createProposal(db, {
+                slug: 'vue-rule',
+                title: 'Vue Rule',
+                summary: 'Updated Vue guidance',
+                type: 'rule',
+                content: 'Use the updated Vue 3 patterns.',
+                scope: {
+                    stacks: ['CI4'],
+                    contextPolicy: 'auto',
+                },
+            });
+            expect((await getProposal(db, proposal.id))?.scope).toEqual({
+                stacks: ['framework:codeigniter:4'],
+            });
+
+            await updateProposalStatus(db, proposal.id, 'approved', 'owner');
+            expect((await getKnowledge(db, 'vue-rule'))?.scope).toEqual({
+                stacks: ['framework:codeigniter:4'],
+            });
         } finally {
             await db.destroy();
             await rm(dir, { recursive: true, force: true });

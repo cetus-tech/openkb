@@ -316,9 +316,9 @@ describe('MCP server — base read tools', () => {
     try {
       const res = await call(service, 'tools/call', {
         name: 'openkb_get_context',
-        arguments: { agentName: 'hermes-context-only' }})
+        arguments: { agentName: 'hermes-context-only', projectSlug: 'openkb' }})
       const result = (res as any).result
-      // Without project/path filters, all active docs are eligible regardless of author.
+      // Matching project and global knowledge are eligible regardless of author.
       expect(result.content[0].text).toContain('Hermes MCP Integration')
       expect(result.content[0].text).toContain('CLI Workflow')
     } finally {
@@ -386,6 +386,44 @@ describe('MCP server — base read tools', () => {
     }
   })
 
+  it('openkb_get_context filters stack requirements before delivery', async () => {
+    const { dir, db, service } = await testService()
+    try {
+      await service.upsertKnowledge({
+        slug: 'vue-component-guide',
+        title: 'Vue component guide',
+        summary: 'Vue component guidance',
+        type: 'skill',
+        content: 'Use Vue component patterns.',
+        scope: { stacks: ['Vue 3'] },
+      })
+      await service.upsertKnowledge({
+        slug: 'ci4-component-guide',
+        title: 'CI4 component guide',
+        summary: 'CodeIgniter component guidance',
+        type: 'skill',
+        content: 'Use CodeIgniter 4 component patterns.',
+        scope: { stacks: ['framework:codeigniter:4'] },
+      })
+
+      const res = await call(service, 'tools/call', {
+        name: 'openkb_get_context',
+        arguments: {
+          projectSlug: 'openkb',
+          stack: ['framework:vue:3', 'language:typescript'],
+          task: 'update the Vue component',
+        },
+      })
+      const result = (res as any).result
+      expect(result.content[0].text).toContain('vue-component-guide')
+      expect(result.content[0].text).not.toContain('ci4-component-guide')
+      expect(result.structuredContent.diagnostics.excludedByStack).toBeGreaterThanOrEqual(1)
+    } finally {
+      await db.destroy()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
   it('openkb_get_context returns active knowledge without author filtering', async () => {
     const { dir, db, service } = await testService()
     try {
@@ -393,7 +431,8 @@ describe('MCP server — base read tools', () => {
         name: 'openkb_get_context',
         arguments: { }})
       const result = (res as any).result
-      expect(result.content[0].text).toContain('Hermes MCP Integration')
+      expect(result.content[0].text).toContain('CLI Workflow')
+      expect(result.content[0].text).not.toContain('Hermes MCP Integration')
     } finally {
       await db.destroy()
       await rm(dir, { recursive: true, force: true })
@@ -435,6 +474,23 @@ describe('MCP server — base read tools', () => {
         arguments: {}})
       // 3 fixtures + seeded openkb-mcp-instructions
       expect((res as any).result.content[0].text).toContain('4 knowledge item(s)')
+    } finally {
+      await db.destroy()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('discovers managed technologies and resolves newly added aliases through MCP', async () => {
+    const { dir, db, service } = await testService()
+    try {
+      await service.saveTechnology('framework:custom:9', { label: 'Custom 9', aliases: ['custom9'] })
+      await service.upsertKnowledge({ slug: 'custom-nine', title: 'Custom', summary: 'Custom guide', content: 'Use custom.', scope: {
+        stacks: ['framework:custom:9'], contextPolicy: 'required',
+      } })
+      const catalog = await call(service, 'tools/call', { name: 'openkb_list_technologies', arguments: { agentName: 'grok' } })
+      expect(JSON.stringify(catalog)).toContain('custom9')
+      const context = await call(service, 'tools/call', { name: 'openkb_get_context', arguments: { agentName: 'grok', stack: ['custom9'] } })
+      expect(JSON.stringify(context)).toContain('custom-nine')
     } finally {
       await db.destroy()
       await rm(dir, { recursive: true, force: true })

@@ -10,6 +10,7 @@ import NotFoundView from '@/views/NotFoundView.vue';
 import DashboardView from '@/views/dashboard/DashboardView.vue';
 import ProposalsView from '@/views/dashboard/ProposalsView.vue';
 import ProposalDetailView from '@/views/dashboard/ProposalDetailView.vue';
+import TechnologiesView from '@/views/dashboard/TechnologiesView.vue';
 import SettingsView from '@/views/dashboard/SettingsView.vue';
 import UsersView from '@/views/dashboard/UsersView.vue';
 import AgentsView from '@/views/dashboard/AgentsView.vue';
@@ -116,6 +117,12 @@ const router = createRouter({
                         title: 'Proposals',
                         description: 'Change proposals',
                     },
+                },
+                {
+                    path: 'technologies',
+                    name: 'dashboard-technologies',
+                    component: TechnologiesView,
+                    meta: { title: 'Technologies', description: 'Manage technology names and aliases' },
                 },
                 {
                     path: 'proposals/:id',

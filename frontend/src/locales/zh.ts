@@ -6,6 +6,7 @@ export default {
         github: 'GitHub',
         knowledge: '知识库',
         proposals: '变更提案',
+        technologies: '技术栈',
         agents: 'Agent 列表',
         users: '用户管理',
         settings: '系统设置',

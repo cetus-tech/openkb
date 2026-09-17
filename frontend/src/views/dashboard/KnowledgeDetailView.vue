@@ -110,6 +110,15 @@
               </span>
             </div>
 
+            <div class="mb-4 flex flex-wrap gap-2 text-xs text-gray-500 dark:text-dark-400">
+              <span v-if="knowledge.scope.stacks?.length" class="rounded bg-blue-50 px-2 py-1 dark:bg-blue-950/30">
+                stacks: {{ knowledge.scope.stacks.join(', ') }}
+              </span>
+              <span v-else class="rounded bg-blue-50 px-2 py-1 dark:bg-dark-800">
+                stacks: all
+              </span>
+            </div>
+
             <MarkdownPane
               class="min-h-0 flex-1"
               :model-value="selectedVersion.content"

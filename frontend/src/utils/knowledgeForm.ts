@@ -9,6 +9,8 @@ export interface KnowledgeFormModel {
   status: string
   projectSlug: string
   pathPatterns: string
+  applicabilityMode: 'any' | 'selected'
+  stacks: string
   content: string
   changeSummary: string
 }
@@ -27,6 +29,8 @@ export function emptyKnowledgeForm(): KnowledgeFormModel {
     status: 'active',
     projectSlug: '',
     pathPatterns: '',
+    applicabilityMode: 'any',
+    stacks: '',
     content: '',
     changeSummary: '',
   }
@@ -41,6 +45,8 @@ export function formFromKnowledge(doc: Knowledge, content: string): KnowledgeFor
     status: doc.status,
     projectSlug: doc.scope.projectSlug ?? '',
     pathPatterns: doc.scope.pathPatterns?.join(', ') ?? '',
+    applicabilityMode: doc.scope.stacks?.length ? 'selected' : 'any',
+    stacks: doc.scope.stacks?.join(', ') ?? '',
     content,
     changeSummary: '',
   }
@@ -51,9 +57,15 @@ export function knowledgePayloadFromForm(
   form: KnowledgeFormModel,
   options?: { includeChangeSummary?: boolean },
 ) {
+  if (form.applicabilityMode === 'selected' && !csv(form.stacks)) {
+    throw new Error('Enter at least one required technology')
+  }
   const scope = {
     ...(form.projectSlug.trim() ? { projectSlug: form.projectSlug.trim() } : {}),
     ...(csv(form.pathPatterns) ? { pathPatterns: csv(form.pathPatterns) } : {}),
+    ...(form.applicabilityMode === 'selected' && csv(form.stacks)
+      ? { stacks: csv(form.stacks) }
+      : {}),
   }
   return {
     slug: form.slug.trim(),
@@ -72,6 +84,9 @@ export function knowledgePayloadFromForm(
 export function validateKnowledgeForm(form: KnowledgeFormModel): string | null {
   if (!form.slug.trim() || !form.title.trim() || !form.summary.trim() || !form.content.trim()) {
     return 'Slug, title, summary, and content are required'
+  }
+  if (form.applicabilityMode === 'selected' && !csv(form.stacks)) {
+    return 'Enter at least one required technology'
   }
   return null
 }

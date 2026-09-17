@@ -1,3 +1,9 @@
+export interface Technology {
+  facet: string
+  label: string
+  aliases: string[]
+}
+
 export interface Knowledge {
   id: number
   slug: string
@@ -18,7 +24,59 @@ export interface Knowledge {
   scope: {
     projectSlug?: string
     pathPatterns?: string[]
+    /** Required technology facets. Omitted or empty means global. */
+    stacks?: string[]
   }
+}
+
+export interface ContextEntry {
+  slug: string
+  title: string
+  summary: string
+  type: string
+  delivery: 'full' | 'summary'
+  required: boolean
+  estimatedTokens: number
+  reason: string
+}
+
+export interface ContextDiagnostics {
+  stack: string[]
+  paths: string[]
+  missingStack: boolean
+  unknownStack: string[]
+  missingPath: boolean
+  invalidPaths: string[]
+  absolutePathRequiresRoot: string[]
+  unclassified: number
+  excludedByStack: number
+  excludedByApplicability: number
+  excludedByProject: number
+  excludedByPath: number
+  excludedByPolicy: number
+  excludedByTask: number
+  cursorError?: 'invalid' | 'stale'
+}
+
+export interface ContextResponse {
+  knowledge: Knowledge[]
+  entries: ContextEntry[]
+  eligibleCount: number
+  returnedCount: number
+  omittedCount: number
+  omittedByBudget: number
+  omittedByLimit: number
+  requiredFetch: string[]
+  incompleteRequiredContext: boolean
+  cursor?: string
+  nextCursor?: string
+  estimatedTokens: number
+  estimatedBytes: number
+  maxBytes: number
+  maxTokens: number
+  tokenEstimator: string
+  responseMode: 'adaptive' | 'summary' | 'full'
+  diagnostics: ContextDiagnostics
 }
 
 export interface KnowledgeGroup {

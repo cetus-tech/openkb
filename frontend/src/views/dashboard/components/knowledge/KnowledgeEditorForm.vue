@@ -67,6 +67,8 @@
         />
       </n-form-item>
 
+      <KnowledgeApplicabilityFields :model="model" @update:model="emit('update:model', $event)" />
+
       <n-form-item label="Markdown content" required :show-feedback="false">
         <MarkdownPane
           class="w-full"
@@ -91,6 +93,7 @@
 
 <script setup lang="ts">
 import MarkdownPane from './MarkdownPane.vue'
+import KnowledgeApplicabilityFields from './KnowledgeApplicabilityFields.vue'
 import type { KnowledgeFormModel } from '@/utils/knowledgeForm'
 
 export type { KnowledgeFormModel }

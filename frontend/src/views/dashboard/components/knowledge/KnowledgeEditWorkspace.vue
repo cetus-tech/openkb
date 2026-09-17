@@ -112,6 +112,8 @@
                   />
                 </n-form-item>
 
+                <KnowledgeApplicabilityFields :model="model" @update:model="emit('update:model', $event)" />
+
                 <n-form-item label="Markdown content" required :show-feedback="false">
                   <n-input
                     :value="model.content"
@@ -133,6 +135,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watchEffect } from 'vue'
+import KnowledgeApplicabilityFields from './KnowledgeApplicabilityFields.vue'
 import type { KnowledgeFormModel } from '@/utils/knowledgeForm'
 import { renderMarkdown } from '@/utils/markdown'
 import { useI18nStore } from '@/stores/i18n'

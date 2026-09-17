@@ -11,7 +11,8 @@ export const openkbMcpInstructionsSeed = {
     status: "active" as const,
     summary:
         "How coding agents should use OpenKB MCP: get context before work, remember durable facts for review, and attribute writes to the token owner.",
-    scope_json: "{}",
+    // An omitted stacks field is global.
+    scope_json: '{}',
     content: `# OpenKB MCP Instructions
 
 OpenKB is the durable source of project knowledge for AI agents and the people who keep it current. Prefer OpenKB over copying durable facts into chat, local instruction files, or one-off notes.
@@ -45,6 +46,23 @@ Knowledge attribution is the **human who owns the MCP bearer token**, not the ag
 - \`openkb_get_knowledge\` — full item by stable slug
 - \`openkb_list_versions\` — version history for one slug
 - \`openkb_list_types\` — valid knowledge types
+- \`openkb_list_technologies\` — managed technology names, canonical IDs, and aliases
+- Before non-trivial work, prefer \`openkb_get_context\` with the complete
+  repository stack and project-relative path. Stack-specific knowledge
+  is only eligible when every required facet matches; an unknown or missing stack
+  is reported instead of guessing a framework version.
+- Send \`stack\` as an array of lower-case canonical facets, for example
+  \`["language:typescript", "framework:vue:3"]\`. Names and aliases are managed
+  on the Technologies page; discover them with \`openkb_list_technologies\`.
+  Canonical IDs work for any technology. Unknown names are reported in
+  \`diagnostics.unknownStack\` rather than guessed.
+- Every applicable item is included, subject to a token budget. Task text does not filter or rank context. Read
+  \`requiredFetch\`, \`incompleteRequiredContext\`, and \`nextCursor\`; fetch
+  required or summarized items with \`openkb_get_knowledge\` before relying on
+  their full guidance.
+- Use \`discovery: true\` only for an intentional comparison or migration
+  search. It may expose otherwise ineligible active knowledge, but does not
+  change permissions.
 
 ## Scope (optional)
 
@@ -52,8 +70,12 @@ When proposing or writing knowledge, set scope only when it should be limited:
 
 - \`projectSlug\` — project-specific knowledge
 - \`pathPatterns\` — path globs (for example \`backend/frontend/**\`)
+- \`stacks\` — canonical technology facets such as
+  \`framework:vue:3\`, \`framework:codeigniter:4\`, or \`language:typescript\`;
+  every listed facet must match; managed aliases are accepted and normalized;
+  omit the field for global knowledge
 
-Omit scope fields for global knowledge used across projects.
+Omit \`stacks\` for global knowledge. Select \`stacks\` for technology-specific knowledge. All matching knowledge is delivered; old delivery policy fields are ignored. Omit project/path restrictions to apply everywhere.
 `,
 };
 
@@ -62,8 +84,9 @@ export function contentHash(content: string): string {
 }
 
 /**
- * Insert or refresh the default MCP instructions knowledge as version 1.
- * Existing multi-version histories keep version_number 1 updated in place.
+ * Insert the default MCP instructions knowledge as version 1.
+ * Existing installations are left untouched; rollout metadata/content changes
+ * must go through the normal human-reviewed knowledge workflow.
  */
 export async function seedOpenkbMcpInstructions(knex: Knex): Promise<void> {
     const seed = openkbMcpInstructionsSeed;
@@ -72,7 +95,9 @@ export async function seedOpenkbMcpInstructions(knex: Knex): Promise<void> {
     const changeSummary = "Default MCP agent instructions (seed)";
 
     const existing = await knex("knowledge").where({ slug: seed.slug }).first();
-    if (!existing) {
+    if (existing) return;
+
+    {
         const [knowledgeId] = await knex("knowledge").insert({
             slug: seed.slug,
             title: seed.title,
@@ -100,49 +125,5 @@ export async function seedOpenkbMcpInstructions(knex: Knex): Promise<void> {
                 current_version_id: Number(versionId),
                 updated_at: timestamp,
             });
-        return;
     }
-
-    await knex("knowledge").where({ id: existing.id }).update({
-        title: seed.title,
-        type: seed.type,
-        status: seed.status,
-        summary: seed.summary,
-        scope_json: seed.scope_json,
-        updated_at: timestamp,
-    });
-
-    const v1 = await knex("knowledge_versions")
-        .where({ knowledge_id: existing.id, version_number: 1 })
-        .first();
-
-    if (v1) {
-        await knex("knowledge_versions").where({ id: v1.id }).update({
-            content_markdown: seed.content,
-            content_hash: hash,
-            change_summary: changeSummary,
-            created_by: "openkb",
-        });
-        await knex("knowledge").where({ id: existing.id }).update({
-            current_version_id: v1.id,
-            updated_at: timestamp,
-        });
-        return;
-    }
-
-    const [versionId] = await knex("knowledge_versions").insert({
-        knowledge_id: existing.id,
-        version_number: 1,
-        content_markdown: seed.content,
-        content_hash: hash,
-        change_summary: changeSummary,
-        created_by: "openkb",
-        created_at: timestamp,
-    });
-    await knex("knowledge")
-        .where({ id: existing.id })
-        .update({
-            current_version_id: Number(versionId),
-            updated_at: timestamp,
-        });
 }

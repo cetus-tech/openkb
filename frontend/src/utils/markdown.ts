@@ -190,7 +190,11 @@ export interface ParsedKnowledgeMarkdown {
     status: string;
     content: string;
     createdBy?: string;
-    scope: { projectSlug?: string; pathPatterns?: string[] };
+    scope: {
+        projectSlug?: string;
+        pathPatterns?: string[];
+        stacks?: string[];
+    };
 }
 
 /** Parse OpenKB-exported Markdown (YAML front matter + body). */
@@ -223,7 +227,7 @@ export function parseExportedMarkdown(
                 }
                 const key = kv[1] ?? '';
                 const rest = (kv[2] ?? '').trim();
-                if (!rest && key === 'pathPatterns') {
+                if (!rest && (key === 'pathPatterns' || key === 'stacks')) {
                     listKey = key;
                     lists[key] = lists[key] ?? [];
                     continue;
@@ -253,6 +257,8 @@ export function parseExportedMarkdown(
     if (meta.projectSlug) scope.projectSlug = meta.projectSlug;
     if (lists.pathPatterns?.length)
         scope.pathPatterns = lists.pathPatterns.filter(Boolean);
+    if (lists.stacks?.length)
+        scope.stacks = lists.stacks.filter(Boolean);
 
     return {
         slug,
@@ -286,6 +292,11 @@ export function exportKnowledgeMarkdown(knowledge: Knowledge): void {
         frontMatterLines.push('pathPatterns:');
         for (const pattern of scope.pathPatterns)
             frontMatterLines.push(`  - ${yamlQuote(pattern)}`);
+    }
+    if (scope.stacks?.length) {
+        frontMatterLines.push('stacks:');
+        for (const stack of scope.stacks)
+            frontMatterLines.push(`  - ${yamlQuote(stack)}`);
     }
     frontMatterLines.push('---', '');
 
