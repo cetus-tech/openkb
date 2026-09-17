@@ -1,0 +1,55 @@
+name: Create GitHub Release
+
+on:
+    push:
+        tags:
+            - 'v*'
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        name: Create release with generated changelog
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Generate Changelog
+              id: github_release
+              uses: mikepenz/release-changelog-builder-action@v5
+              with:
+                  mode: 'COMMIT'
+                  configurationJson: |
+                      {
+                        "template": "#{{CHANGELOG}}\n\n#{{UNCATEGORIZED}}",
+                        "categories": [
+                          {
+                            "title": "### Features",
+                            "labels": ["feat"]
+                          },
+                          {
+                            "title": "### Bug Fixes",
+                            "labels": ["fix"]
+                          },
+                          {
+                            "title": "### Maintenance & Improvements",
+                            "labels": ["chore", "refactor", "perf", "docs", "style", "test", "ci", "build"]
+                          }
+                        ],
+                        "label_extractor": [
+                          {
+                            "pattern": "^([a-zA-Z]+)(\\([\\w\\-\\.]+\\))?(!)?: (.*)",
+                            "target": "$1"
+                          }
+                        ]
+                      }
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  tag_name: ${{ github.ref_name }}
+                  name: ${{ github.ref_name }}
+                  body: ${{ steps.github_release.outputs.changelog }}
