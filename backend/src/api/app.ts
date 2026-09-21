@@ -38,12 +38,13 @@ const DOC_ORDER: Record<string, number> = {
     'integrations/grok-cli': 6,
     'integrations/chatgpt': 7,
     'integrations/antigravity': 8,
-    'concepts/overview': 9,
-    'concepts/knowledge-retrieval': 10,
-    'concepts/permissions': 11,
-    'introduction/project-structure': 12,
-    'development/contributing': 13,
-    'development/database': 14,
+    'integrations/deepseek-harness': 9,
+    'concepts/overview': 10,
+    'concepts/knowledge-retrieval': 11,
+    'concepts/permissions': 12,
+    'introduction/project-structure': 13,
+    'development/contributing': 14,
+    'development/database': 15,
 };
 
 /**

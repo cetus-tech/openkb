@@ -53,6 +53,8 @@ rm openkb.cookies
 
 对于 ChatGPT，从 **Settings → Plugins → MCP** 添加服务器。输入远程 `/mcp` URL 和 OpenKB Bearer 令牌。
 
+对于 DeepSeek Harness (DSH)，在当前 Profile 中安装 `@deepseek-ai/dsh-mcp-client` 插件，并在 `cordis.patch.yml` 的 `- insert:` 列表下配置 `streamable-http` 模式的 OpenKB 条目。详见 [DeepSeek Harness 集成指南](deepseek-harness)。
+
 ## Agent 身份与权限
 
 OpenKB 身份包含两个层级：

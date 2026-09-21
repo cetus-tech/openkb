@@ -77,6 +77,7 @@ Use the client-specific guides:
 - [Grok CLI](../integrations/grok-cli)
 - [ChatGPT](../integrations/chatgpt)
 - [Antigravity IDE](../integrations/antigravity)
+- [DeepSeek Harness (DSH)](../integrations/deepseek-harness)
 
 For a remote agent, publish OpenKB behind HTTPS. `localhost` is reachable only from the same machine.
 

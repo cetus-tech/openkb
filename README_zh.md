@@ -61,6 +61,7 @@ http://localhost:6800/mcp
 - [`backend/docs/zh/integrations/grok-cli.md`](backend/docs/zh/integrations/grok-cli.md)
 - [`backend/docs/zh/integrations/chatgpt.md`](backend/docs/zh/integrations/chatgpt.md)
 - [`backend/docs/zh/integrations/antigravity.md`](backend/docs/zh/integrations/antigravity.md)
+- [`backend/docs/zh/integrations/deepseek-harness.md`](backend/docs/zh/integrations/deepseek-harness.md)
 
 ## Agent 工作流
 

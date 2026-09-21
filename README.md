@@ -61,6 +61,7 @@ The endpoint accepts Streamable HTTP JSON-RPC requests. It requires a bearer tok
 - [`backend/docs/en/integrations/grok-cli.md`](backend/docs/en/integrations/grok-cli.md)
 - [`backend/docs/en/integrations/chatgpt.md`](backend/docs/en/integrations/chatgpt.md)
 - [`backend/docs/en/integrations/antigravity.md`](backend/docs/en/integrations/antigravity.md)
+- [`backend/docs/en/integrations/deepseek-harness.md`](backend/docs/en/integrations/deepseek-harness.md)
 
 ## Agent workflow
 

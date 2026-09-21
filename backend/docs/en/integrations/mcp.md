@@ -53,6 +53,8 @@ For a remote installation, use an HTTPS endpoint such as `https://kb.example.com
 
 For ChatGPT, add the server from **Settings → Plugins → MCP**. Enter the remote `/mcp` URL and the OpenKB bearer token.
 
+For DeepSeek Harness (DSH), install `@deepseek-ai/dsh-mcp-client` into your profile and add an OpenKB entry using `streamable-http` under `- insert:` in `cordis.patch.yml`. See the [DeepSeek Harness guide](deepseek-harness).
+
 ## Agent identity and permissions
 
 OpenKB identity has two layers:

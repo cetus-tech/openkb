@@ -50,6 +50,7 @@ describe('api app', () => {
       'integrations/grok-cli',
       'integrations/chatgpt',
       'integrations/antigravity',
+      'integrations/deepseek-harness',
       'concepts/overview',
       'concepts/knowledge-retrieval',
       'concepts/permissions',

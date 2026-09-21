@@ -77,6 +77,7 @@ http://localhost:6800/mcp
 - [Grok CLI Guide](../integrations/grok-cli)
 - [ChatGPT Guide](../integrations/chatgpt)
 - [Antigravity IDE Guide](../integrations/antigravity)
+- [DeepSeek Harness (DSH) 指南](../integrations/deepseek-harness)
 
 对于远程 Agent，请将 OpenKB 发布在 HTTPS 反向代理之后。`localhost` 仅可从同一台机器访问。
 
