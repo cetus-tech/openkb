@@ -129,7 +129,7 @@ export async function lookupAuthToken(db: Knex, authorization?: string): Promise
   if (!row?.user_id) return undefined
   const user = await db<UserRowSummary>('users').select('id', 'email', 'name', 'role').where({ id: row.user_id }).first()
   if (!user) return undefined
-  void db<TokenRow>('api_tokens').where({ id: row.id }).update({ last_used_at: now() })
+  await db<TokenRow>('api_tokens').where({ id: row.id }).update({ last_used_at: now() })
   return {
     id: row.id,
     userId: user.id,
@@ -173,7 +173,7 @@ async function lookupSession(db: Knex, cookieHeader?: string): Promise<{ id: num
     await db<SessionRow>('user_sessions').where({ id: row.id }).delete()
     return undefined
   }
-  void db<SessionRow>('user_sessions').where({ id: row.id }).update({ last_used_at: now() })
+  await db<SessionRow>('user_sessions').where({ id: row.id }).update({ last_used_at: now() })
   return { id: row.id, userId: row.user_id }
 }
 

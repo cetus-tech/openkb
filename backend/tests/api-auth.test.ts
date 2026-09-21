@@ -285,6 +285,7 @@ describe('API token lifecycle', () => {
     expect(sessionBody.tokens[0].tokenPrefix).toMatch(/^okb_[a-f0-9]{4}\.\.\.[a-f0-9]{4}$/)
     expect(sessionBody.tokens[0].value).toBe(created.token.value)
     expect(sessionBody.tokens[0].current).toBeUndefined()
+    expect(sessionBody.tokens[0].lastUsedAt).toBeNull()
 
     const res = await app.inject({ method: 'GET', url: '/auth/tokens', headers: { authorization: `Bearer ${created.token.value}` } })
     expect(res.statusCode).toBe(200)
@@ -293,6 +294,7 @@ describe('API token lifecycle', () => {
     expect(body.tokens[0].name).toBe('codex')
     expect(body.tokens[0].value).toBe(created.token.value)
     expect(body.tokens[0].current).toBeUndefined()
+    expect(body.tokens[0].lastUsedAt).toBeTruthy()
 
     const renamed = await app.inject({
       method: 'PATCH',
