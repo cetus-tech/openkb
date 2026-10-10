@@ -10,12 +10,12 @@ export const openkbMcpInstructionsSeed = {
     type: "rule" as const,
     status: "active" as const,
     summary:
-        "How coding agents should use OpenKB MCP: get context before work, remember durable facts for review, and attribute writes to the token owner.",
+        "How coding agents should use OpenKB MCP: retrieve active context before work, follow concise final facts, and only propose durable architectural rules (not dev logs or progress notes).",
     // An omitted stacks field is global.
     scope_json: '{}',
     content: `# OpenKB MCP Instructions
 
-OpenKB is the durable source of project knowledge for AI agents and the people who keep it current. Prefer OpenKB over copying durable facts into chat, local instruction files, or one-off notes.
+OpenKB is the durable source of project knowledge and guidelines for AI agents and the people who keep it current. It is NOT a dev diary, changelog, scratchpad, or code documentation folder.
 
 ## Before non-trivial work
 
@@ -32,9 +32,19 @@ Call \`openkb_whoami\` when you need to confirm permission level or which tools 
 
 ## When durable knowledge should change
 
-1. **Default:** \`openkb_remember\` — creates a reviewable proposal. It does **not** change active knowledge until a human approves it in the dashboard.
-2. **Direct save:** \`openkb_upsert_knowledge\` only when the bearer token has **write** permission and an intentional active update is required.
-3. Do not leave durable decisions only in chat or in local instruction files.
+1. **High threshold for proposals:** Over 95% of tasks (bug fixes, feature additions, routine refactoring) do **NOT** produce durable knowledge and must not call \`openkb_remember\`.
+2. **Prohibited proposals (DO NOT PROPOSE):**
+   - NO progress notes, dev diaries, or task completion summaries.
+   - NO changelogs, commit mirrors, or lists of files modified.
+   - NO temporary notes, intermediate reasoning, discussion, or thought processes.
+   - NO descriptions of what specific routines or files do (code is its own reference).
+3. **When to propose (\`openkb_remember\`):** Propose only if:
+   - The user explicitly instructs you to record/remember a rule or decision, OR
+   - A permanent architectural invariant, project convention, or non-obvious pitfall is established that future agents will break if unaware.
+4. **Content style (Concise Final Facts Only):**
+   - Store only short, concise **final facts** and hard rules.
+   - Use bullet points and direct statements with zero fluff, no reasoning narrative, and no temporary discussions.
+5. **Direct save:** \`openkb_upsert_knowledge\` only when the bearer token has **write** permission and an intentional active update is required.
 
 Knowledge attribution is the **human who owns the MCP bearer token**, not the agent name.
 

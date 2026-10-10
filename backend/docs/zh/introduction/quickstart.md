@@ -123,7 +123,7 @@ http_headers = { "X-OpenKB-Agent" = "codex" }
 
 ## 6. 使用 Agent 记忆循环
 
-要求 Agent 在执行非平凡任务之前调用 `openkb_get_context`。当它发现持久性的决策、规则、工作流、踩坑记录或进展笔记时，应当调用 `openkb_remember`。提案会出现在 **提案 (Proposals)** 中供审核和批准。
+要求 Agent 在执行非平凡任务之前调用 `openkb_get_context`。当它确立了持久性的架构决策、规则、工作流或踩坑避坑要点时，可以调用 `openkb_remember` 提出简明精炼的最终事实提案。提案会出现在 **提案 (Proposals)** 中供审核和批准。请勿将常规代码修改、任务总结或开发日志提议为知识。
 
 标准流程为：
 

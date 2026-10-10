@@ -123,7 +123,7 @@ Use the same identity on every session. Changing the name creates a second agent
 
 ## 6. Use the agent memory loop
 
-Ask the agent to call `openkb_get_context` before a non-trivial task. When it discovers a durable decision, rule, workflow, pitfall, or progress note, it should call `openkb_remember`. The proposal appears in **Proposals** for review and approval.
+Ask the agent to call `openkb_get_context` before a non-trivial task. When it establishes a durable architectural decision, rule, workflow, or pitfall, it can call `openkb_remember` to propose concise final facts. The proposal appears in **Proposals** for review and approval. Do not propose routine code changes, task summaries, or dev logs.
 
 The normal flow is:
 

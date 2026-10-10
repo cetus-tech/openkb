@@ -177,11 +177,14 @@ const proposeTools: McpTool[] = [
   {
     name: 'openkb_remember',
     description:
-      'Propose durable knowledge for human review (does not change active knowledge until approved). Use for new items or a full replacement of an existing slug. Preferred write path for agents.',
+      'Propose permanent, durable project guidelines or architectural invariants for human review (does not change active knowledge until approved). ' +
+      'DO NOT use for routine code changes, bug fixes, progress updates, task summaries, changelogs, or dev logs. ' +
+      'Proposals must contain concise final facts, rules, or standards only (no intermediate discussions or reasoning). ' +
+      'Use only when explicitly instructed or establishing an invariant rule; 95%+ of tasks require no proposal.',
     inputSchema: {
       title: z.string().describe('Knowledge title'),
-      summary: z.string().describe('Short knowledge summary'),
-      content: z.string().describe('Complete Markdown content'),
+      summary: z.string().describe('Short knowledge summary (concise final facts, 1-2 sentences)'),
+      content: z.string().describe('Complete Markdown content containing concise final facts and rules (no dev logs or discussions)'),
       slug: z.string().optional().describe('Existing slug to update, or a new stable slug; auto-generated when omitted'),
       type: z.string().optional().describe('Knowledge type (default context)'),
       projectSlug: z.string().optional().describe('Optional project scope; omit for global knowledge'),
