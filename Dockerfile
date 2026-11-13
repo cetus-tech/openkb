@@ -60,6 +60,7 @@ RUN CI=true pnpm exec vite build
 # App process runs as non-root `node` (uid 1000) via entrypoint.
 # ---------------------------------------------------------------------------
 FROM ${NODE_IMAGE} AS runtime
+ARG APP_VERSION=
 WORKDIR /app
 ENV NODE_ENV=production \
   OPENKB_DATA_DIR=/data
@@ -68,6 +69,11 @@ ENV NODE_ENV=production \
 RUN apk add --no-cache su-exec \
   && mkdir -p /data \
   && chown node:node /data
+
+RUN if [ -n "${APP_VERSION}" ]; then \
+      clean_ver="${APP_VERSION#v}"; \
+      echo "${clean_ver}" > /app/VERSION; \
+    fi
 
 COPY --from=backend-prod --chown=node:node /app/backend/package.json /app/
 COPY --from=backend-prod --chown=node:node /app/backend/node_modules /app/node_modules

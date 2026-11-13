@@ -1,11 +1,54 @@
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
+import fs from 'node:fs'
+import path from 'node:path'
+import { execSync } from 'node:child_process'
 
-// Single source of truth for the version: package.json.
 const require = createRequire(import.meta.url)
 const packageJson = require('../../package.json') as { version: string }
 
-export const OPENKB_VERSION = packageJson.version
+function cleanVersion(val?: string | null): string | null {
+  if (!val) return null
+  const trimmed = val.trim().replace(/^v/, '')
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function resolveOpenKbVersion(): string {
+  // 1. Environment variable override
+  const envVer = cleanVersion(process.env.OPENKB_BUILD_VERSION || process.env.APP_VERSION)
+  if (envVer) return envVer
+
+  // 2. VERSION file (written during Docker build or package releases)
+  const candidatePaths = [
+    path.resolve(process.cwd(), 'VERSION'),
+    path.resolve(new URL('..', import.meta.url).pathname, 'VERSION'),
+    path.resolve(new URL('../..', import.meta.url).pathname, 'VERSION'),
+    '/app/VERSION',
+  ]
+  for (const p of candidatePaths) {
+    try {
+      if (fs.existsSync(p)) {
+        const fileVer = cleanVersion(fs.readFileSync(p, 'utf8'))
+        if (fileVer) return fileVer
+      }
+    } catch {}
+  }
+
+  // 3. Git tag / describe if running in a git checkout
+  try {
+    const gitTag = execSync('git describe --tags --exact-match 2>/dev/null || git describe --tags --always 2>/dev/null', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+    const cleaned = cleanVersion(gitTag)
+    if (cleaned) return cleaned
+  } catch {}
+
+  // 4. Fallback to package.json
+  return cleanVersion(packageJson.version) ?? '1.4.1'
+}
+
+export const OPENKB_VERSION = resolveOpenKbVersion()
 
 export const knowledgeTypes = [
   'context',
