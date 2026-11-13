@@ -12,30 +12,31 @@ http://localhost:6800/mcp
 
 ## 2. 添加 OpenKB
 
-你可以直接通过 Antigravity IDE 的界面配置 OpenKB MCP 服务器：
+直接在编辑器中打开 Antigravity MCP 配置文件：
 
-1. 打开右侧面板上的 **MCP Servers** 选项卡。
-2. 点击 **Manage MCP Servers**。
-3. 在中央面板中，点击 **View Raw Config**。
-4. 将以下配置内容添加到文件中：
+
+- macOS / Linux：`~/.gemini/config/mcp_config.json`
+- Windows：`%USERPROFILE%\.gemini\config\mcp_config.json`
+
+如果文件不存在请先创建；如果已有配置，请将 `"openkb"` 条目添加到现有的 `"mcpServers"` 对象中：
 
 ```json
 {
-  "mcpServers": {
-    "openkb": {
-      "serverUrl": "http://localhost:6800/mcp",
-      "headers": {
-        "Authorization": "Bearer <你的 OpenKB 令牌>",
-        "X-OpenKB-Agent": "antigravity"
-      }
+    "mcpServers": {
+        "openkb": {
+            "serverUrl": "http://localhost:6800/mcp",
+            "headers": {
+                "Authorization": "Bearer <你的 OpenKB 令牌>",
+                "X-OpenKB-Agent": "antigravity"
+            }
+        }
     }
-  }
 }
 ```
 
 对于远程服务器，请将 `http://localhost:6800/mcp` 替换为远程 HTTPS 端点。
 
-保存后，验证服务器已在 MCP Servers 面板中列出并显示为 **Connected（已连接）**。
+保存文件后，重新启动 Antigravity Agent 会话以加载该 MCP 服务器。
 
 ## 3. 指示 Antigravity 使用 OpenKB
 
